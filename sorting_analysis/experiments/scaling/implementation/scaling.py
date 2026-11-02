@@ -11,7 +11,7 @@ from sorting_analysis.config import DEFAULT_SETTINGS
 def run_scaling(rows, usable_indices, settings=DEFAULT_SETTINGS):
     """
     Description:
-    - Draw one seeded sample per size in settings.get_scaling_sizes().
+    - Draw one seeded sample per size in settings.scaling_sizes.
     - Measure every algorithm on the same sample with benchmark.
 
     Input arguments:

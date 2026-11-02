@@ -21,5 +21,6 @@ The timed region (`time.perf_counter()`) contains only the sort calls and storin
 |---|---|---|
 | `benchmark(sort_function, values, settings)` | sort function, input, settings | `(TimingResult, SortStats)`; `VerificationError` on a wrong output, changing counts or a modified input |
 | `TimingResult(batch_seconds, sorts_per_batch, median_seconds, min_seconds, max_seconds)` | seconds per sort per batch, sorts per batch, and their median, min, max | read-only record with a getter per value, filled in once by `benchmark` |
+| `repetitions_for(input_size, settings)` | input size, settings | sorts per batch: 1,000 if input_size ≤ 20, else 1 |
 | `median_of(values)` | `list[float]` | median, computed with our merge sort |
 | `VerificationError` | — | raised when verification fails |

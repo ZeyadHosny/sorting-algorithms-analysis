@@ -27,9 +27,7 @@ Allowed imports: `sorts` imports nothing outside `sorts`; `data` and `timing` ma
 
 | Name | Description |
 |---|---|
-| `Settings(...)` | Every seed, size, column, path and timing value; read with `get_<name>()` |
-| `settings.repetitions_for(input_size)` | Sorts per timed batch: 1,000 if input_size ≤ 20, else 1 |
-| `settings.with_csv_path(csv_path)` | A copy with another dataset path |
+| `Settings(...)` | Every seed, size, column, path and timing value, read as attributes (`settings.order_sample_size`); values only, no methods |
 | `DEFAULT_SETTINGS` | The official settings |
 
 | Setting | Default |

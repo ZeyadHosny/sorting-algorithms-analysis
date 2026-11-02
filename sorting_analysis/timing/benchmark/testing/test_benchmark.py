@@ -1,9 +1,21 @@
 """Unit tests for timing.benchmark (drafts: each test is skipped until it is written)."""
 import unittest
 
-from sorting_analysis.timing import TimingResult, VerificationError, benchmark, median_of  # noqa: F401
+from sorting_analysis.timing import TimingResult, VerificationError, benchmark, median_of, repetitions_for  # noqa: F401
 
 NOT_WRITTEN = "test not implemented yet"
+
+
+class TestRepetitionsFor(unittest.TestCase):
+    """Sorts per timed batch for each input size."""
+
+    def test_very_small_inputs(self):
+        """repetitions_for(5), repetitions_for(20) -> 1000 with the default settings."""
+        self.skipTest(NOT_WRITTEN)
+
+    def test_normal_inputs(self):
+        """repetitions_for(21), repetitions_for(250) -> 1 with the default settings."""
+        self.skipTest(NOT_WRITTEN)
 
 
 class TestMedianOf(unittest.TestCase):

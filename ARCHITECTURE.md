@@ -151,7 +151,7 @@ Exit codes (team convention, not a PDF requirement): `0` all computations succee
 
 ## 2. Interfaces
 
-Signatures are binding between team members. Code style: no type hints; records are plain classes with private attributes, set once by the constructor and read with `get_<attribute>()`; every docstring has **Description / Input arguments / Return** (types are given there). Comments below show the types.
+Signatures are binding between team members. Code style: no type hints; `Settings` is values only (public attributes, no methods); the result records are plain classes with private attributes, set once by the constructor and read with `get_<attribute>()`; every docstring has **Description / Input arguments / Return** (types are given there). Comments below show the types.
 
 ### 2.1 `sorting_analysis/config.py`
 
@@ -164,9 +164,8 @@ class Settings:
                  timed_batches=5, small_input_limit=20, small_input_repetitions=1000,
                  normal_input_repetitions=1, extrapolation_target_size=20640,
                  extrapolation_base_sizes=(1000, 2000, 4000)): ...
-    # get_csv_path() ... get_extrapolation_base_sizes(): one getter per attribute
-    def with_csv_path(self, csv_path): ...        # -> Settings: copy with another dataset path (--csv)
-    def repetitions_for(self, input_size): ...    # -> int: small_input_repetitions if input_size <= small_input_limit, else normal_input_repetitions
+    # Stores each argument as a public attribute (settings.order_sample_size, ...). No methods:
+    # the code that uses a value lives in its feature module.
 
 DEFAULT_SETTINGS = Settings()
 ```
@@ -235,8 +234,12 @@ class TimingResult:
 class VerificationError(Exception): ...           # output differs from sorted(), counts differ between runs, or input changed
 
 def benchmark(sort_function, values, settings=DEFAULT_SETTINGS): ...
-    # -> tuple: (TimingResult, SortStats); settings.get_timed_batches() batches of
-    #    settings.repetitions_for(len(values)) sorts; every output verified afterwards
+    # -> tuple: (TimingResult, SortStats); settings.timed_batches batches of
+    #    repetitions_for(len(values), settings) sorts; every output verified afterwards
+
+def repetitions_for(input_size, settings=DEFAULT_SETTINGS): ...
+    # -> int: settings.small_input_repetitions if input_size <= settings.small_input_limit,
+    #    else settings.normal_input_repetitions
 
 def median_of(values): ...                        # -> float: median computed with our merge_sort
 ```
@@ -309,7 +312,7 @@ def plot_repeated_values(cases, output_folder): ...
 ```python
 # main.py
 def main(argument_list=None, settings=DEFAULT_SETTINGS): ...   # -> int: exit code
-def write_metadata(path, settings, plots_status, generated_files): ...
+def write_metadata(path, csv_path, settings, plots_status, generated_files): ...
     # seeds, sizes, timing tiers, Python version, dataset SHA-256, timestamp, plots_status
     # ("complete" / "missing"), generated_files; temporary file + os.replace
 # Pipeline helpers: mocked_steps, parse_arguments, choose_output_folder, same_folder, check_output_folder,
@@ -471,8 +474,7 @@ To be stated in the report's limitations section (R-46).
 
 | ID | Requirement | Satisfies | Example |
 |---|---|---|---|
-| F-CFG-1 | `Settings` holds every seed, size, column name, path and timing setting | R-09, R-23, R-51, U-05, U-06, D-04 | `DEFAULT_SETTINGS.get_sample_seed() == 42` |
-| F-CFG-2 | `settings.repetitions_for(input_size)` returns 1,000 for input_size ≤ 20 and 1 otherwise | R-27, U-13, U-14 | `settings.repetitions_for(20) == 1000`, `settings.repetitions_for(250) == 1` |
+| F-CFG-1 | `Settings` holds every seed, size, column name, path and timing setting | R-09, R-23, R-51, U-05, U-06, D-04 | `DEFAULT_SETTINGS.sample_seed == 42` |
 
 ### 4.2 `data/loader`
 
@@ -560,6 +562,7 @@ To be stated in the report's limitations section (R-46).
 | F-BEN-6 | Checks counts are identical across runs and the input is unchanged | R-13, R-26, R-51 | — |
 | F-BEN-7 | Disables garbage collection while timing; restores the previous state | D-07 | — |
 | F-BEN-8 | Timing includes the defensive copy and the counters | U-10, U-11 | — |
+| F-BEN-9 | `repetitions_for(input_size, settings)` returns 1,000 for input_size ≤ 20 and 1 otherwise | R-27, U-13, U-14 | `repetitions_for(20) == 1000`, `repetitions_for(250) == 1` |
 
 ### 4.11 `experiments/common/records.py`
 

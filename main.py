@@ -87,22 +87,22 @@ def mock_case(experiment, algorithm, column, order, input_size):
 
 
 def mock_run_scaling(rows, usable_indices, settings):
-    return [mock_case("scaling", algorithm, settings.get_scaling_column(), "random", size)
-            for size in settings.get_scaling_sizes() for algorithm in ALGORITHMS]
+    return [mock_case("scaling", algorithm, settings.scaling_column, "random", size)
+            for size in settings.scaling_sizes for algorithm in ALGORITHMS]
 
 
 def mock_run_input_order(rows, usable_indices, settings):
-    return [mock_case("order", algorithm, settings.get_scaling_column(), order, settings.get_order_sample_size())
+    return [mock_case("order", algorithm, settings.scaling_column, order, settings.order_sample_size)
             for order in ORDERS for algorithm in ALGORITHMS]
 
 
 def mock_run_repeated_values(rows, usable_indices, settings):
-    size = settings.get_order_sample_size()
+    size = settings.order_sample_size
     cases = [mock_case("dupes", algorithm, column, "random", size)
-             for column in settings.get_selected_columns() for algorithm in ALGORITHMS]
+             for column in settings.selected_columns for algorithm in ALGORITHMS]
     duplicate_rows = [{"column": column, "sample_size": size, "distinct": 0, "modal_value": 0, "modal_count": 0,
                        "repeated_distinct": 0, "repeated_observations": 0}
-                      for column in settings.get_selected_columns()]
+                      for column in settings.selected_columns]
     return cases, duplicate_rows
 
 
@@ -258,8 +258,8 @@ def choose_output_folder(command, requested_folder, settings):
     if requested_folder:
         return requested_folder
     if command == "all" and not mocked_steps():
-        return settings.get_results_folder()
-    return os.path.join(settings.get_results_folder(), "dev")
+        return settings.results_folder
+    return os.path.join(settings.results_folder, "dev")
 
 
 # Function to compare two folder paths
@@ -294,20 +294,21 @@ def check_output_folder(output_folder, settings):
     """
     if not mocked_steps():
         return
-    is_official = same_folder(output_folder, settings.get_results_folder())
+    is_official = same_folder(output_folder, settings.results_folder)
     if is_official or os.path.exists(os.path.join(output_folder, "metadata.json")):
         raise InputError(f"steps are still mocked - refusing to write into {output_folder}; use results/dev/")
 
 
 # Function to load the dataset and find the usable rows
-def load_dataset(settings, need_usable_rows=True):
+def load_dataset(csv_path, settings, need_usable_rows=True):
     """
     Description:
     - Load the CSV, check that the selected columns exist, and find the rows where every
       selected column holds a valid value. Prints how many rows were excluded.
 
     Input arguments:
-       settings (Settings): Run settings (csv_path, selected_columns).
+       csv_path (str): Dataset path (--csv, or settings.csv_path).
+       settings (Settings): Run settings (selected_columns).
        need_usable_rows (bool): Fail if no row is usable (False for `check`).
 
     Return:
@@ -315,10 +316,10 @@ def load_dataset(settings, need_usable_rows=True):
          missing, or no row is usable)
     """
     try:
-        rows = load_csv(settings.get_csv_path())
+        rows = load_csv(csv_path)
     except FileNotFoundError:
-        raise InputError(f"dataset not found: {settings.get_csv_path()} (see README for the source)") from None
-    columns = settings.get_selected_columns()
+        raise InputError(f"dataset not found: {csv_path} (see README for the source)") from None
+    columns = settings.selected_columns
     missing_columns = [column for column in columns if rows and column not in rows[0]]
     if missing_columns:
         raise InputError(f"dataset lacks column(s): {', '.join(missing_columns)}")
@@ -360,7 +361,7 @@ def run_inspection(rows, settings):
     Return:
         list[dict]: one row per column with the INSPECTION_FIELDS keys.
     """
-    inspection_rows = inspect_data(rows, settings.get_selected_columns())
+    inspection_rows = inspect_data(rows, settings.selected_columns)
     for row in inspection_rows:
         print(f"  {row['column']}: rows {row['rows']}, missing {row['missing']}, distinct {row['distinct']}")
     return inspection_rows
@@ -384,9 +385,9 @@ def run_experiments(experiment_names, rows, usable_indices, settings, output_fol
          VerificationError if a sort output is wrong)
     """
     if "scaling" in experiment_names:
-        check_sample_size(max(settings.get_scaling_sizes()), usable_indices)
+        check_sample_size(max(settings.scaling_sizes), usable_indices)
     if "order" in experiment_names or "dupes" in experiment_names:
-        check_sample_size(settings.get_order_sample_size(), usable_indices)
+        check_sample_size(settings.order_sample_size, usable_indices)
 
     cases = []
     if "scaling" in experiment_names:
@@ -422,8 +423,8 @@ def run_analysis(case_rows, settings, output_folder):
         None (raises ValueError on a zero or negative timing)
     """
     write_rows(growth_factors(case_rows), os.path.join(output_folder, "growth.csv"), GROWTH_FIELDS)
-    target_size = settings.get_extrapolation_target_size()
-    base_sizes = settings.get_extrapolation_base_sizes()
+    target_size = settings.extrapolation_target_size
+    base_sizes = settings.extrapolation_base_sizes
     all_estimates = []
     for method, extrapolate in (("c", extrapolate_bubble), ("growth", extrapolate_bubble_growth)):
         estimate_rows = extrapolate(case_rows, target_size, base_sizes)
@@ -477,13 +478,14 @@ def read_case_rows(output_folder):
 
 
 # Function to run the official pipeline
-def run_all(settings, output_folder):
+def run_all(csv_path, settings, output_folder):
     """
     Description:
     - Official run: inspection, all experiments, analysis, plots, then metadata.json last.
     - With mocks in use, old outputs are kept and metadata.json is not written.
 
     Input arguments:
+       csv_path (str): Dataset path.
        settings (Settings): Run settings.
        output_folder (str): Folder for every output.
 
@@ -493,7 +495,7 @@ def run_all(settings, output_folder):
     is_official = not mocked_steps()
     if is_official:
         remove_previous_outputs(output_folder)
-    rows, usable_indices = load_dataset(settings)
+    rows, usable_indices = load_dataset(csv_path, settings)
     inspection_rows = run_inspection(rows, settings)
     write_rows(inspection_rows, os.path.join(output_folder, "inspection.csv"), INSPECTION_FIELDS)
     cases = run_experiments(("scaling", "order", "dupes"), rows, usable_indices, settings, output_folder)
@@ -510,7 +512,8 @@ def run_all(settings, output_folder):
 
     if is_official:
         generated_files = [os.path.join(output_folder, name) for name in CSV_OUTPUTS] + plot_files
-        write_metadata(os.path.join(output_folder, "metadata.json"), settings, plots_status, generated_files)
+        write_metadata(os.path.join(output_folder, "metadata.json"), csv_path, settings, plots_status,
+                       generated_files)
     else:
         print("Mock run: metadata.json not written")
 
@@ -532,16 +535,17 @@ def remove_previous_outputs(output_folder):
 
 
 # Function to write the success marker of an official run
-def write_metadata(path, settings, plots_status, generated_files):
+def write_metadata(path, csv_path, settings, plots_status, generated_files):
     """
     Description:
-    - Write metadata.json: seeds, sizes, timing tiers, Python version, the dataset's SHA-256,
-      a timestamp, plots_status and generated_files.
+    - Write metadata.json: dataset path and SHA-256, seeds, sizes, timing tiers, Python
+      version, a timestamp, plots_status and generated_files.
     - Write a temporary file first, then rename it with os.replace, so an interrupted run
       never leaves a partial file.
 
     Input arguments:
        path (str): Destination, normally results/metadata.json.
+       csv_path (str): Dataset path, used for its SHA-256.
        settings (Settings): Run settings.
        plots_status (str): 'complete' or 'missing'.
        generated_files (list[str]): Paths written by this run.
@@ -553,13 +557,14 @@ def write_metadata(path, settings, plots_status, generated_files):
 
 
 # Function to run one command
-def run_command(command, settings, output_folder):
+def run_command(command, csv_path, settings, output_folder):
     """
     Description:
     - Run one command: check, scaling, order, dupes, analyze, plot or all.
 
     Input arguments:
        command (str): Command name.
+       csv_path (str): Dataset path.
        settings (Settings): Run settings.
        output_folder (str): Folder for the outputs.
 
@@ -570,10 +575,10 @@ def run_command(command, settings, output_folder):
         check_output_folder(output_folder, settings)
         os.makedirs(output_folder, exist_ok=True)
     if command == "check":
-        rows, _ = load_dataset(settings, need_usable_rows=False)
+        rows, _ = load_dataset(csv_path, settings, need_usable_rows=False)
         run_inspection(rows, settings)
     elif command in ("scaling", "order", "dupes"):
-        rows, usable_indices = load_dataset(settings)
+        rows, usable_indices = load_dataset(csv_path, settings)
         run_experiments((command,), rows, usable_indices, settings, output_folder)
     elif command == "analyze":
         run_analysis(read_case_rows(output_folder), settings, output_folder)
@@ -582,7 +587,7 @@ def run_command(command, settings, output_folder):
             raise InputError("the plot command needs matplotlib")
         run_plots(read_case_rows(output_folder), output_folder)
     else:
-        run_all(settings, output_folder)
+        run_all(csv_path, settings, output_folder)
 
 
 # Function to run the program
@@ -600,13 +605,12 @@ def main(argument_list=None, settings=DEFAULT_SETTINGS):
         int: the exit code (0, 1, 2 or 130).
     """
     arguments = parse_arguments(argument_list)
-    if arguments.csv:
-        settings = settings.with_csv_path(arguments.csv)
+    csv_path = arguments.csv or settings.csv_path
     output_folder = choose_output_folder(arguments.command, arguments.out, settings)
     if mocked_steps():
         print(f"Mocked steps: {', '.join(mocked_steps())}")
     try:
-        run_command(arguments.command, settings, output_folder)
+        run_command(arguments.command, csv_path, settings, output_folder)
     except InputError as error:
         print(f"ERROR: {error}", file=sys.stderr)
         return EXIT_INPUT

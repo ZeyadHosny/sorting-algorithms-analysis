@@ -129,18 +129,36 @@ class VerificationError(Exception):
     """
 
 
+# Function to choose the number of sorts per timed batch
+def repetitions_for(input_size, settings=DEFAULT_SETTINGS):
+    """
+    Description:
+    - Very small inputs are too fast to time once, so they are sorted many times per batch.
+    - Return settings.small_input_repetitions if input_size <= settings.small_input_limit,
+      otherwise settings.normal_input_repetitions.
+
+    Input arguments:
+       input_size (int): Number of values to sort, e.g. 5.
+       settings (Settings): Run settings.
+
+    Return:
+        int: e.g. 1000 for 5 values, 1 for 250 values.
+    """
+    raise NotImplementedError("repetitions_for: not implemented yet")
+
+
 # Function to time one sort on one input
 def benchmark(sort_function, values, settings=DEFAULT_SETTINGS):
     """
     Description:
-    - Run settings.get_timed_batches() batches of settings.repetitions_for(len(values)) sorts,
-    - timed with time.perf_counter().
+    - Run settings.timed_batches batches of repetitions_for(len(values), settings) sorts,
+      timed with time.perf_counter().
     - Verify every output against sorted() after the clock stops; check counts and the input.
 
     Input arguments:
        sort_function (function): bubble_sort, selection_sort or merge_sort.
        values (list[float]): Input values; must be unchanged afterwards.
-       settings (Settings): Run settings (timed_batches, repetitions_for).
+       settings (Settings): Run settings (timed_batches and the repetition values).
 
     Return:
         tuple: (TimingResult, SortStats) (raises VerificationError if any check fails)
