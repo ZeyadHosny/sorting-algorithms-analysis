@@ -8,12 +8,16 @@ class TestSettings(unittest.TestCase):
     """Default values and overriding them."""
 
     def test_defaults_match_the_agreed_settings(self):
-        """Seeds 42/43/44, the eight scaling sizes, sample size 2000, 5 timed batches."""
+        """Seeds 42/43/44, the eight scaling sizes, sample size 2000, 5 timed batches, five fitted sizes, one column per experiment."""
         self.assertEqual((DEFAULT_SETTINGS.sample_seed, DEFAULT_SETTINGS.shuffle_seed,
                           DEFAULT_SETTINGS.nearly_sorted_seed), (42, 43, 44))
         self.assertEqual(DEFAULT_SETTINGS.scaling_sizes, (5, 10, 20, 250, 500, 1000, 2000, 4000))
         self.assertEqual(DEFAULT_SETTINGS.order_sample_size, 2000)
         self.assertEqual(DEFAULT_SETTINGS.timed_batches, 5)
+        self.assertEqual(DEFAULT_SETTINGS.extrapolation_base_sizes, (250, 500, 1000, 2000, 4000))
+        self.assertEqual((DEFAULT_SETTINGS.scaling_column, DEFAULT_SETTINGS.order_column),
+                         ("median_income", "median_income"))
+        self.assertIn(DEFAULT_SETTINGS.order_column, DEFAULT_SETTINGS.selected_columns)
 
     def test_override_changes_only_the_given_value(self):
         """Settings(order_sample_size=10) keeps every other default."""

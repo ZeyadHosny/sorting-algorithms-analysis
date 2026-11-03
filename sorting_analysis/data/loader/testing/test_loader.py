@@ -3,6 +3,7 @@ import unittest
 
 from sorting_analysis.data import column_values, complete_cases, load_csv, parse_value  # noqa: F401
 
+# Skip message of the drafted tests that are not written yet.
 NOT_WRITTEN = "test not implemented yet"
 
 

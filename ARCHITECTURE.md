@@ -5,7 +5,7 @@ Project 2, Fall 2026 · Reference: `Project-2.pdf` (all `§` numbers refer to it
 **Contents**
 1. [Architecture and flow](#1-architecture-and-flow)
 2. [Interfaces](#2-interfaces)
-3. [Project requirements](#3-project-requirements) — [3.1 Clear](#31-clear-requirements) · [3.2 ⚠️ Unclear / assumptions](#32-unclear-requirements-and-working-assumptions) · [3.3 Design decisions](#33-design-decisions-not-from-the-pdf) · [3.4 Known limitations](#34-known-limitations)
+3. [Project requirements](#3-project-requirements) — [3.1 Clear and clarified](#31-clear-requirements) · [3.2 ⚠️ Open](#32-open-requirements-waiting-for-the-instructor) · [3.3 Design decisions](#33-design-decisions-not-from-the-pdf) · [3.4 Known limitations](#34-known-limitations)
 4. [Requirements per file](#4-requirements-per-file)
 5. [Coverage check](#5-coverage-check)
 
@@ -30,10 +30,10 @@ Project_2/
 │   │   ├── sampling/        implementation/sampling.py         testing/test_sampling.py
 │   │   └── orders/          implementation/orders.py           testing/test_orders.py
 │   ├── sorts/           README.md
-│   │   ├── common/          sort_stats.py
-│   │   ├── bubble_sort/     implementation/bubble_sort.py      testing/test_bubble_sort.py
-│   │   ├── selection_sort/  implementation/selection_sort.py   testing/test_selection_sort.py
-│   │   └── merge_sort/      implementation/merge_sort.py       testing/test_merge_sort.py
+│   │   ├── common/          sort_stats.py                      testing/logged_value.py (test helper)
+│   │   ├── bubble_sort/     implementation/bubble_sort.py, counted_bubble_sort.py        testing/test_bubble_sort.py
+│   │   ├── selection_sort/  implementation/selection_sort.py, counted_selection_sort.py  testing/test_selection_sort.py
+│   │   └── merge_sort/      implementation/merge_sort.py, counted_merge_sort.py          testing/test_merge_sort.py
 │   ├── timing/          README.md
 │   │   └── benchmark/       implementation/benchmark.py        testing/test_benchmark.py
 │   ├── experiments/     README.md
@@ -52,7 +52,7 @@ Project_2/
 └── results/             README.md · generated outputs (committed)
 ```
 
-Every package folder, `implementation/`, `testing/` and `common/` contains an `__init__.py`. `config.py` and the `common/` modules with logic (`records.py`, `filters.py`) have their own `testing/` folder; `sort_stats.py` is a plain record, covered by the sort tests. Each feature's `__init__.py` re-exports its public names (`from .implementation.bubble_sort import bubble_sort`), and each area's `__init__.py` re-exports its features, so code outside an area imports `from sorting_analysis.sorts import bubble_sort`. Inside an area, implementation files import the specific module (`from sorting_analysis.sorts.common import SortStats`) to avoid circular imports.
+Every package folder, `implementation/`, `testing/` and `common/` contains an `__init__.py`. `config.py` and the `common/` modules with logic (`records.py`, `filters.py`) have their own `testing/` folder; `sort_stats.py` is a plain record, covered by the sort tests. Each sort has two files with the same loops: the plain version (timed) and the counted version (operation counts), see U-11. Each feature's `__init__.py` re-exports its public names (`from .implementation.bubble_sort import bubble_sort`), and each area's `__init__.py` re-exports its features, so code outside an area imports `from sorting_analysis.sorts import bubble_sort`. Inside an area, implementation files import the specific module (`from sorting_analysis.sorts.common import SortStats`) to avoid circular imports.
 
 ### 1.2 Allowed dependencies
 
@@ -63,8 +63,8 @@ Every package folder, `implementation/`, `testing/` and `common/` contains an `_
 | `sorts/<algorithm>` | `sorts/common` |
 | `data/loader`, `data/sampling` | `config` |
 | `data/inspection` | `config`, `data/loader` (shared `parse_value`, U-01) |
-| `data/orders` | `config`, `sorts/merge_sort` (to build "already sorted", U-08) |
-| `timing/benchmark` | `config`, `sorts/common`, `sorts/merge_sort` (for the median, U-16) |
+| `data/orders` | `config`, `sorts/merge_sort` (plain version, to build "already sorted", U-08) |
+| `timing/benchmark` | `config`, `sorts/merge_sort` (plain version, for the median, U-16); the plain and counted sorts are passed in |
 | `experiments/common` | `config`, `sorts`, `timing` |
 | `experiments/<experiment>` | `config`, `data`, `sorts`, `timing`, `experiments/common` |
 | `analysis/common` | `experiments/common` |
@@ -92,13 +92,14 @@ samples: list[float] ──► data.orders.make_orders   (4.3 only)
    │
    ▼
 experiments.{scaling, input_order, repeated_values}
-   │   for each input × algorithm:  timing.benchmark(sort_function, values, settings)
-   │        → 5 timed batches → verify every output vs sorted() → TimingResult + SortStats
+   │   for each input × algorithm:  timing.benchmark(sort_function, counted_sort_function, values, settings)
+   │        → per batch: counted sort once, untimed (counts) + timed loop of the plain sort
+   │        → verify every output vs sorted() after the clock → TimingResult + SortStats
    ▼
 CaseResult list ──(write_cases / write_runs / write_rows)───────────────► results/cases.csv, timing_runs.csv, dupes_stats.csv
    │
    ▼
-analysis.{growth, extrapolation} ──(main: write_rows)───────────────────► results/growth.csv, extrapolation.csv
+analysis.{growth, extrapolation (quadratic fit)} ──(main: write_rows)──► results/growth.csv, extrapolation.csv
    │
    ▼
 plots.charts (matplotlib) ──────────────────────────────────────────────► results/*.png
@@ -116,9 +117,9 @@ At the start of `all`, any existing `metadata.json` and previously generated PNG
 | Very small | n ≤ 20 (5, 10, 20) | 1,000 | 5 | median of (batch time ÷ 1,000) |
 | Normal | n > 20 (250 … 4000) | 1 | 5 | median of the 5 single-sort times |
 
-The timed region (`time.perf_counter()`) contains the sort calls **plus** storing each output for later verification (U-15, D-08). Loading, sampling, building input orders and verification all happen outside it.
+Only the **plain** sort (no counters) is timed (U-11). The timed region (`time.perf_counter()`) contains its calls **plus** storing each output for later verification (U-15, D-08). The **counted** sort runs once per batch outside the clock and supplies the counts. Loading, sampling, building input orders, counting and verification all happen outside the timed region.
 
-**Workload with the default settings:** 45,180 timed sort calls (45,000 of them in the very-small tier), dominated in wall-clock time by the bubble and selection sorts at n = 2000–4000. Do a pilot run before relying on any runtime estimate.
+**Workload with the default settings:** 45,180 timed sort calls (45,000 of them in the very-small tier) plus 225 untimed counted calls (45 cases × 5 batches), dominated in wall-clock time by the bubble and selection sorts at n = 2000–4000. Do a pilot run before relying on any runtime estimate.
 
 ### 1.5 Command line
 
@@ -126,7 +127,7 @@ The timed region (`time.perf_counter()`) contains the sort calls **plus** storin
 |---|---|
 | `python main.py check` | Load and inspect the dataset; print rows, missing values and distinct values. |
 | `python main.py scaling` / `order` / `dupes` | Run one experiment (development; see D-03). |
-| `python main.py analyze` | Compute growth factors and the extrapolation from `results/cases.csv`. |
+| `python main.py analyze` | Compute growth factors and the bubble sort estimate (quadratic regression) from `results/cases.csv`; print measured vs fitted times. |
 | `python main.py plot` | Draw charts (needs matplotlib). |
 | `python main.py all` | Official run: check → 3 experiments → analyze → plot (skipped with a message if matplotlib is missing) → metadata. |
 | Options `--csv PATH`, `--out DIR` | Override the dataset path and output folder. |
@@ -143,7 +144,7 @@ Exit codes (team convention, not a PDF requirement): `0` all computations succee
 | `timing_runs.csv` | `experiments/common.write_runs` | timed batch | experiment, algorithm, column, order, input_size, batch, seconds_per_sort |
 | `dupes_stats.csv` | `main` via `write_rows` | column in 4.4 | column, sample_size, distinct, modal_value, modal_count, repeated_distinct, repeated_observations |
 | `growth.csv` | `main` via `write_rows` | algorithm × doubling | algorithm, size_from, size_to, time_from_s, time_to_s, observed_factor, theoretical_factor |
-| `extrapolation.csv` | `main` via `write_rows` | method × base | method (`c` / `growth`), half_size, base_size, base_time_s, constant_c, exponent_b, estimate_s (target n = 20,640) |
+| `extrapolation.csv` | `main` via `write_rows` | the estimate (1 row) | method (`quadratic_fit`), sizes_used, a0, a1, a2, target_size, estimate_s |
 | `metadata.json` | `main.write_metadata` | run | seeds, sizes, timing tiers, Python version, dataset SHA-256, timestamp, plots_status, generated_files |
 | `*.png` | `plots/charts` | chart | runtime/comparisons/writes vs n; per input order; per column |
 
@@ -159,18 +160,19 @@ Signatures are binding between team members. Code style: no type hints; `Setting
 class Settings:
     def __init__(self, csv_path="housing.csv", results_folder="results",
                  selected_columns=("median_income", "housing_median_age", "median_house_value"),
-                 scaling_column="median_income", sample_seed=42, shuffle_seed=43, nearly_sorted_seed=44,
+                 scaling_column="median_income", order_column="median_income",
+                 sample_seed=42, shuffle_seed=43, nearly_sorted_seed=44,
                  scaling_sizes=(5, 10, 20, 250, 500, 1000, 2000, 4000), order_sample_size=2000,
                  timed_batches=5, small_input_limit=20, small_input_repetitions=1000,
                  normal_input_repetitions=1, extrapolation_target_size=20640,
-                 extrapolation_base_sizes=(1000, 2000, 4000)): ...
+                 extrapolation_base_sizes=(250, 500, 1000, 2000, 4000)): ...
     # Stores each argument as a public attribute (settings.order_sample_size, ...). No methods:
     # the code that uses a value lives in its feature module.
 
 DEFAULT_SETTINGS = Settings()
 ```
 
-Defaults are module constants with a comment each (`DEFAULT_SAMPLE_SEED = 42`, …). Tests pass a small `Settings(...)`, e.g. `Settings(scaling_sizes=(5, 10), order_sample_size=10, extrapolation_base_sizes=(5, 10))` (D-04).
+Defaults are module constants with a comment each (`DEFAULT_SAMPLE_SEED = 42`, …). Tests pass a small `Settings(...)`, e.g. `Settings(scaling_sizes=(5, 10, 15, 20, 25), order_sample_size=10, extrapolation_base_sizes=(5, 10, 15, 20, 25))` (D-04); the quadratic fit needs at least 3 sizes.
 
 ### 2.2 `data/`
 
@@ -194,7 +196,7 @@ def sample_indices(usable_indices, sample_size, seed): ...  # -> list[int]: with
 def shuffle_indices(row_indices, seed): ...      # -> list[int]: new list in random.Random(seed).shuffle order (used once by 4.3 and 4.4)
 
 # data/orders/implementation/orders.py
-def ascending(values): ...                       # -> list[float]: sorted copy by our merge_sort (never sorted())
+def ascending(values): ...                       # -> list[float]: new ascending list by our plain merge_sort (never sorted())
 def descending(values): ...                      # -> list[float]: reverse of ascending(values)
 def nearly_sorted(values, seed): ...             # -> list[float]: ascending, then floor(0.01 * len(values)) swaps of two distinct random positions
 def make_orders(shuffled_values, nearly_sorted_seed): ...  # -> dict: 'random' (shuffled_values unchanged), 'sorted', 'reversed', 'nearly'
@@ -208,19 +210,32 @@ class SortStats:
     def __init__(self, comparisons, writes, swaps): ...   # ints; swaps is None for merge sort (U-18)
     # get_comparisons(), get_writes(), get_swaps()
 
+# Plain versions: timed, no counters, return the new ascending list.
 # sorts/bubble_sort/implementation/bubble_sort.py
-def bubble_sort(values): ...                     # -> tuple: (new ascending list, SortStats)
-
+def bubble_sort(values): ...                     # -> list[float]; lecture code: full passes, stop after a pass with no swaps
 # sorts/selection_sort/implementation/selection_sort.py
-def selection_sort(values): ...                  # -> tuple: (new ascending list, SortStats)
-
+def selection_sort(values): ...                  # -> list[float]; at most one swap per position (PDF)
 # sorts/merge_sort/implementation/merge_sort.py
-def merge_sort(values): ...                      # -> tuple: (new ascending list, SortStats)
+def merge_sort(values): ...                      # -> list[float]
+def _merge_sort_recursive(sublist): ...          # -> list[float]
+def _merge(left_half, right_half): ...           # -> list[float]; ties take from left_half (<=)
+
+# Counted versions: same loops plus local counters, never timed, return (new ascending list, SortStats).
+# sorts/bubble_sort/implementation/counted_bubble_sort.py
+def counted_bubble_sort(values): ...             # [3,1,2] -> 4 comparisons, 4 writes, 2 swaps
+# sorts/selection_sort/implementation/counted_selection_sort.py
+def counted_selection_sort(values): ...          # [3,1,2] -> 3 comparisons, 4 writes, 2 swaps
+# sorts/merge_sort/implementation/counted_merge_sort.py
+def counted_merge_sort(values): ...              # [2,1] -> 1 comparison, 2 writes, swaps None
 def _merge_sort_recursive(sublist): ...          # -> tuple: (sorted list, comparisons, writes) for this subtree
-def _merge(left_half, right_half): ...           # -> tuple: (merged list, comparisons, writes); ties take from left_half (<=)
+def _merge(left_half, right_half): ...           # -> tuple: (merged list, comparisons, writes)
+
+# sorts/common/testing/logged_value.py (test helper)
+class LoggedValue: ...                           # a number that logs every <, <=, >, >= into a shared list
+def logged_values(numbers, log): ...             # -> list[LoggedValue]
 ```
 
-All three sorts return a **new** list and never modify the input. Bubble and selection sort copy it first (`a = list(values)`). Merge sort never writes into its input, because splitting by slicing creates new lists. The defensive input copy and splitting/slicing copies are **not** counted (U-10, R-16); every value placed into a merged output list, including leftover tails, **is** counted.
+All six sorts return a **new** list and never modify the input. Bubble and selection sort copy it first by slicing (`a = values[:]`); merge sort never writes into its input, because splitting by slicing creates new lists. Copies made by splitting or slicing, including the initial copy, are **not** counted (§4.1, U-10, R-16); every value placed into a merged output list, including leftover tails, **is** counted. The plain and counted versions of an algorithm have the same loops; each sort test checks on `logged_values` inputs that both make the same comparison sequence (D-10).
 
 ### 2.4 `timing/`
 
@@ -233,22 +248,25 @@ class TimingResult:
 
 class VerificationError(Exception): ...           # output differs from sorted(), counts differ between runs, or input changed
 
-def benchmark(sort_function, values, settings=DEFAULT_SETTINGS): ...
-    # -> tuple: (TimingResult, SortStats); settings.timed_batches batches of
-    #    repetitions_for(len(values), settings) sorts; every output verified afterwards
+def benchmark(sort_function, counted_sort_function, values, settings=DEFAULT_SETTINGS): ...
+    # -> tuple: (TimingResult, SortStats); settings.timed_batches batches. Per batch: counted_sort_function
+    #    once outside the clock (output, unchanged input and identical counts checked), then
+    #    repetitions_for(len(values), settings) timed calls of sort_function; every output verified afterwards
 
 def repetitions_for(input_size, settings=DEFAULT_SETTINGS): ...
     # -> int: settings.small_input_repetitions if input_size <= settings.small_input_limit,
     #    else settings.normal_input_repetitions
 
-def median_of(values): ...                        # -> float: median computed with our merge_sort
+def median_of(values): ...                        # -> float: median computed with our plain merge_sort
 ```
 
 ### 2.5 `experiments/`
 
 ```python
 # experiments/common/records.py
-ALGORITHMS = {"bubble": bubble_sort, "selection": selection_sort, "merge": merge_sort}
+ALGORITHMS = {"bubble": (bubble_sort, counted_bubble_sort),      # name -> (plain sort, counted sort)
+              "selection": (selection_sort, counted_selection_sort),
+              "merge": (merge_sort, counted_merge_sort)}
 CASE_FIELDS = ("experiment", "algorithm", "column", "order", "input_size", "comparisons", "writes", "swaps",
                "sorts_per_batch", "median_s", "min_s", "max_s")
 RUN_FIELDS = ("experiment", "algorithm", "column", "order", "input_size", "batch", "seconds_per_sort")
@@ -288,13 +306,17 @@ def theoretical_factor(algorithm, smaller_size, larger_size): ...  # -> float: s
 def growth_factors(cases): ...                    # -> list[dict]: observed T(2n)/T(n) per doubling pair, beside the theoretical factor
 
 # analysis/extrapolation/implementation/extrapolation.py
-EXTRAPOLATION_FIELDS = ("method", "half_size", "base_size", "base_time_s", "constant_c", "exponent_b", "estimate_s")
-def extrapolate_bubble(cases, target_size, base_sizes): ...         # method 'c': c = T(n)/n², estimate = c · target_size²
-def extrapolate_bubble_growth(cases, target_size, base_sizes): ...  # method 'growth': b = log2(T(n)/T(n/2)), estimate = T(n)·(target_size/n)^b
-def estimate_range(estimate_rows): ...            # -> tuple: (min, max) of ONE method; ValueError if empty
-
-# Both extrapolation functions use bubble sort scaling rows only, raise ValueError on non-positive timings
-# (before any division or log), and return [] when no base size is available.
+FIT_METHOD = "quadratic_fit"
+EXTRAPOLATION_FIELDS = ("method", "sizes_used", "a0", "a1", "a2", "target_size", "estimate_s")
+FITTED_FIELDS = ("input_size", "measured_s", "fitted_s")
+def determinant_3x3(matrix): ...                  # -> float
+def fit_quadratic(sizes, times): ...              # -> tuple: (a0, a1, a2), least squares via Cramer's rule;
+                                                  #    ValueError if < 3 distinct sizes, lengths differ, or singular
+def predict_time(coefficients, input_size): ...   # -> float: a0 + a1*n + a2*n**2
+def bubble_times(cases, base_sizes): ...          # -> list[float]: bubble sort scaling median_s per base size;
+                                                  #    ValueError if a size is missing/duplicated or a time is not > 0 and finite
+def extrapolate_bubble(cases, target_size, base_sizes): ...
+    # -> tuple: (estimate row with EXTRAPOLATION_FIELDS, measured-vs-fitted rows with FITTED_FIELDS)
 ```
 
 ### 2.7 `plots/`
@@ -330,7 +352,7 @@ class TestEndToEnd(unittest.TestCase): ...        # main(['all'], settings=<smal
 
 ### 3.1 Clear requirements
 
-Stated explicitly in the PDF. `Qn` = numbered item in §4 (Q1–Q5 are the numbered items of §4.2).
+R-rows are stated explicitly in the PDF; the U-rows under **Clarified requirements** were unclear and are now settled. `Qn` = numbered item in §4 (Q1–Q5 are the numbered items of §4.2).
 
 | ID | Requirement | § | Example |
 |---|---|---|---|
@@ -358,7 +380,7 @@ Stated explicitly in the PDF. `Qn` = numbered item in §4 (Q1–Q5 are the numbe
 | R-19 | Merge sort takes from the left half on ties (`<=`) | §4.1 | `left[i] <= right[j]` |
 | R-20 | Time with `time.perf_counter()`; exclude data loading | §4.1 | — |
 | R-21 | Verify every output against `sorted()` | §4.1 | — |
-| R-22 | State any additional implementation choices in the report | §4.1 | §3.2 – §3.4 of this document |
+| R-22 | State any additional implementation choices in the report | §4.1 | Clarified requirements (§3.1), §3.2 – §3.4 of this document |
 | **4.2 Scaling** | | | |
 | R-23 | Q1: random samples of increasing size with a recorded seed, including very small sizes; all three algorithms on the same sample at each size | §4.2 (1) | n = 5, 10, 20, 250 … 4000, seed 42 |
 | R-24 | Q2: record runtime, comparisons and writes for each algorithm and size | §4.2 (2) | One row per case |
@@ -366,7 +388,7 @@ Stated explicitly in the PDF. `Qn` = numbered item in §4 (Q1–Q5 are the numbe
 | R-26 | Q2: operation counts identical across repeated runs on the same input | §4.2 (2) | 5 runs → same comparisons |
 | R-27 | Q2: very small inputs — time a loop of many repetitions and divide by the count | §4.2 (2) | 1,000 sorts ÷ 1,000 |
 | R-28 | Q3: when n doubles, compute the observed growth factor; compare with O(n²) and O(n log n); explain differences | §4.2 (3) | 1000→2000: quadratic 4.00, merge ≈ 2.20 |
-| R-29 | Q4: estimate bubble sort on **20,640 random values** from measurements; show calculation and assumptions; use more than one sample size **if possible**; explain why approximate | §4.2 (4) | Method choice: see U-19 |
+| R-29 | Q4: estimate bubble sort on **20,640 random values** from measurements; show calculation and assumptions; use more than one sample size **if possible**; explain why approximate | §4.2 (4) | Quadratic regression on n = 250 … 4000 (U-19) |
 | R-30 | *Optional, not planned:* run bubble sort once on all 20,640 values, only after the estimate; if done, report the actual time and compare it with the estimate | §3, §4.2 (4) | — |
 | R-31 | Q5: identify the sizes where merge sort's advantage becomes apparent; discuss why less visible for very small inputs | §4.2 (5) | — |
 | **4.3 Input order** | | | |
@@ -408,35 +430,40 @@ Stated explicitly in the PDF. `Qn` = numbered item in §4 (Q1–Q5 are the numbe
 | R-53 | Findings explained by algorithm behaviour as well as asymptotic complexity | §2, §7 | — |
 | R-54 | Report and presentation quality: clear organisation, complete decision guide, sound conclusions, participation by all members | §7 | — |
 
-### 3.2 Unclear requirements and working assumptions
+#### Clarified requirements
 
-> ⚠️ **Flagged.** Unresolved interpretations of the PDF, and consequential choices that arise from its requirements. Each row records the decision **assumed for now** and the modules that depend on it. **Bold** = the module that implements the decision. If the group changes a decision, update the bold module first, then review the others listed and their tests. Every assumption is stated in the report (R-22).
->
-> **Open choices needing a final group decision** (ideally confirmed with the instructor): U-03, U-06, U-13, U-19, U-22 — the PDF says "for example" or gives no rule, and changing the choice later means re-running experiments or rewriting results. The other U-rows are resolved by a documented default. The task plan colours these orange and yellow respectively.
+Points the PDF left unclear, now settled. **Instructor** = confirmed by the instructor; **Group** = our choice, stated in the report (R-22). They keep their U-IDs, which the code, tests and task plan refer to. **Bold** module = the module that implements the requirement; if one changes, update it first, then review the others listed and their tests.
+
+| ID | Point the PDF left unclear | § | Settled requirement | Affected modules | Example |
+|---|---|---|---|---|---|
+| U-01 | Missing, unparsable or non-finite values in the selected columns | §3 | **Instructor:** our choice (none expected). A value is missing if blank, unparsable or non-finite; rows with any missing selected value are dropped before sampling and the count is reported | **`data/loader`**, `data/inspection`, `main.py` | Expected 0 dropped |
+| U-02 | Whether `housing.csv` is committed | §3, §5 | **Instructor:** may be committed. Committed at the repository root; README also gives the source URL; `metadata.json` records its SHA-256 | **`.gitignore`**, `README.md`, `main.py` | — |
+| U-03 | "Same random seed" in 4.4 | §4.4 | **Group:** one seeded draw of row indices; the same indices **in the same order** (the 4.3 `shuffle_indices` order) are used for all three columns, so 4.4's `median_income` input equals 4.3's "random" input. The columns still differ in value distribution and inversion count, not only in duplication; Q12 must separate those effects | **`data/sampling`**, `experiments/repeated_values`, `experiments/input_order` | Row 17 → its income, age and value, at the same position |
+| U-04 | Sampling with or without replacement | §4.2, §4.4 | **Group** (instructor: "a seed to take specific indices"): row indices drawn without replacement | **`data/sampling`**, `experiments/*` | `random.Random(42).sample(...)` |
+| U-05 | Seed management | §4.2, §4.3, §7 | **Instructor:** several seeds are fine but must be reported. One `random.Random(seed)` per purpose: sample 42, shuffle 43, nearly sorted 44; reported in README, report and `metadata.json` | **`config.py`**, `data/sampling`, `data/orders`, `experiments/*` | — |
+| U-06 | Exact sample sizes ("for example" in the PDF) | §4.2 (1), §4.3 | **Instructor:** scaling 5, 10, 20, 250, 500, 1000, 2000, 4000; 4.3/4.4 use n = 2000 | **`config.py`**, `experiments/*`, `analysis/*` | — |
+| U-07 | Bubble sort pass structure | §4.1 | **Instructor:** early termination as in the lecture. Lecture code (Week 8, slide 20): every pass compares each neighbouring pair over the **whole** list; stop after a full pass with no swaps (no shrinking range). Selection and merge sort follow the PDF where the lecture differs (one swap per position; `<=` on ties) | **`sorts/bubble_sort`** | Reversed n = 5 → 5 passes × 4 = 20 comparisons, 10 swaps |
+| U-08 | Which own sort produces "already sorted" | §4.3 | **Instructor:** our choice. Our plain merge sort, outside timing | **`data/orders`** | — |
+| U-09 | Nearly sorted: may a position be picked in several swaps? | §4.3 | **Group:** two distinct positions per swap; reuse across swaps allowed | **`data/orders`** | — |
+| U-10 | The defensive copy at the start of each sort | §4, §4.1 | **Instructor:** follow the stated write definition. **Group** reading: the copy is made by slicing (`values[:]`), so it falls under "copies made only by splitting or slicing" and is not counted; it stays inside the sort (the input is never modified) and therefore inside the timing; stated in the report | **`sorts/*`**, `timing/benchmark` | `a = values[:]` |
+| U-11 | Counter overhead in timings | §4.1 | **Instructor:** counters must not be timed. Two files per algorithm with the same loops: the **plain** version is timed; the **counted** version runs once per batch outside the clock and supplies the counts. A comparison-trace test keeps both versions identical (D-10) | **`sorts/*`**, `timing/benchmark`, `experiments/common` | `benchmark(bubble_sort, counted_bubble_sort, values)` |
+| U-13 | Number of repetitions ("for example, 1,000") | §4.2 (2) | **Instructor:** 5 timed batches, median reported. Very small inputs (n ≤ 20) are sorted 1,000 times per batch (the PDF requires a loop there); others once | **`config.py`**, `timing/benchmark` | §1.4 |
+| U-14 | "Very small": §4.2 lists n = 20, the §4.5 row says n < 20 | §4.2, §4.5 | **Instructor:** 5, 10 and 20 are very small. The decision-guide row (PDF label "n < 20") uses all three; the report notes that 20 is included as confirmed by the instructor | **`config.py`**, report | — |
+| U-15 | "Verify every output" combined with repeated timing | §4.1 | **Instructor:** verify against `sorted()`. Every timed output and every counted output is verified, after the clock stops (mechanics: D-08) | **`timing/benchmark`** | 5 × 1,000 outputs at n = 5 |
+| U-16 | How to compute the median (`statistics.median` uses `sorted()`) | §2, §4.2 (2) | **Instructor:** `sorted()` is for verification only. The median is computed with our plain merge sort | **`timing/benchmark`** | `median_of([3,1,2]) == 2` |
+| U-18 | Swaps are reported "if counted separately"; merge sort performs none | §4.1, §4.3 | **Instructor:** follow the stated definition. Swaps reported for bubble and selection; merge sort's value is "n/a" (`None`), not 0 | **`sorts/common`**, `sorts/merge_sort`, `experiments/common` | — |
+| U-19 | Extrapolation method | §4.2 (4) | **Instructor:** fit a curve by regression to the measured times at n = 250, 500, 1000, 2000, 4000 and extrapolate to 20,640. Least-squares fit of T(n) = a₀ + a₁·n + a₂·n² to bubble sort's random-input medians, solved with Cramer's rule; estimate = T(20,640). The report shows the curve, the estimate, measured vs fitted times, and why it is approximate (5 points, ×5.16 beyond the largest size) | **`analysis/extrapolation`**, `config.py`, `main.py` | times 0.001 + 2·10⁻⁶n + 10⁻⁷n² → estimate 42.64324 s |
+
+### 3.2 Open requirements (waiting for the instructor)
+
+> ⚠️ **Open.** Points the PDF leaves unclear and the instructor has not answered yet. Each row records the **draft** used for now. Neither blocks the code: `duplicate_stats` already reports both readings of U-17, and U-22 only affects how the report reads `cases.csv`. When an answer arrives, move the row to §3.1 (Clarified requirements), then update the **bold** module and the others listed.
 >
 > Pure implementation mechanics with no basis in the PDF are in §3.3 (D-xx), and known limitations are in §3.4 (L-xx). IDs U-12, U-20 and U-21 were moved there (to D-07, L-01 and L-02) and are not reused.
 
-| ID | ⚠️ Unclear point | § | Working assumption (for now) | Affected modules | Example |
+| ID | ⚠️ Unclear point | § | Draft (for now) | Affected modules | Example |
 |---|---|---|---|---|---|
-| U-01 | Missing, unparsable or non-finite values in the selected columns | §3 | Inspect raw rows first. A value is missing if blank, unparsable or non-finite. Drop rows with any missing selected value before sampling; report how many | **`data/loader`**, `data/inspection`, `main.py` | Expected 0 dropped |
-| U-02 | Whether `housing.csv` is committed | §3, §5 | **Decided by the group:** committed at the repository root (≈1.4 MB, public dataset), so a fresh clone runs as-is; README also gives the source URL; `metadata.json` records its SHA-256 so results can be matched to the exact file | **`.gitignore`**, `README.md`, `main.py` | — |
-| U-03 | "Same random seed" in 4.4 | §4.4 | Same row indices for all three columns, identical to the 4.3 sample, **and** the same `shuffle_indices` order, so 4.4's `median_income` input equals 4.3's "random" input exactly. This fixes the row selection and ordering *procedure* across columns; the columns still differ in value distribution, rank order and inversion count, not only in duplication, so Q12 must separate those effects | **`data/sampling`**, `experiments/repeated_values`, `experiments/input_order` | Row 17 → its income, age and value, at the same position |
-| U-04 | Sampling with or without replacement | §4.2, §4.4 | Without replacement | **`data/sampling`**, `experiments/*` | `random.Random(42).sample(...)` |
-| U-05 | Seed management | §4.2, §4.3, §7 | One `random.Random(seed)` per purpose (sample, shuffle, nearly), so call order cannot change inputs | **`config.py`**, `data/sampling`, `data/orders`, `experiments/*` | — |
-| U-06 | Exact sample sizes ("for example" in the PDF) | §4.2 (1), §4.3 | 5, 10, 20, 250, 500, 1000, 2000, 4000; 4.3/4.4 use 2000 | **`config.py`**, `experiments/*`, `analysis/*` | — |
-| U-07 | Bubble sort pass range | §4.1 | Inner range shrinks by one per pass | **`sorts/bubble_sort`** | Reversed n = 5 → 10 comparisons |
-| U-08 | Which own sort produces "already sorted" | §4.3 | Our merge sort, outside timing | **`data/orders`** | — |
-| U-09 | Nearly sorted: may a position be picked in several swaps? | §4.3 | Two distinct positions per swap; reuse across swaps allowed | **`data/orders`** | — |
-| U-10 | Defensive copy at the start of each sort | §4, §4.1 | Not counted as writes; included in timing | **`sorts/*`**, `timing/benchmark` | `a = list(values)` |
-| U-11 | Counter overhead in timings | §4.1 | Time the counting version; label results as instrumented time | **`sorts/*`**, `timing/benchmark` | — |
-| U-13 | Number of repetitions ("for example, 1,000") | §4.2 (2) | Two fixed tiers: n ≤ 20 → 1,000; otherwise 1; always 5 batches | **`config.py`**, `timing/benchmark` | §1.4 |
-| U-14 | "Very small" boundary: §4.2 lists n = 20, §4.5 says n < 20 | §4.2, §4.5 | n ≤ 20 uses the 1,000-repetition tier; the n < 20 decision-guide row uses n = 5 and 10 as evidence, n = 20 only as the boundary | **`config.py`**, report | — |
-| U-15 | "Verify every output" combined with repeated timing | §4.1 | The output of **every** repetition is verified against `sorted()`, after the clock stops (mechanics: D-08) | **`timing/benchmark`** | 5 × 1,000 outputs at n = 5 |
-| U-16 | How to compute the median (`statistics.median` uses `sorted()`) | §2, §4.2 (2) | Our own merge sort | **`timing/benchmark`** | `median_of([3,1,2]) == 2` |
-| U-17 | "Number of values that occur more than once" | §4.4 | Report both: distinct values that repeat, and observations belonging to them | **`data/inspection`**, `experiments/repeated_values`, `experiments/common` | `[1,1,2,3,3,3]` → 2 and 5 |
-| U-18 | Swaps are reported "if counted separately"; we count them, but merge sort performs none | §4.3 | Reported for bubble and selection; merge sort's value is not applicable (`None`, written as "n/a"), not 0 | **`sorts/common`**, `sorts/merge_sort`, `experiments/common` | — |
-| U-19 | Extrapolation method | §4.2 (4) | Two methods on random-input scaling data. **Main:** c = T(n)/n² for n = 1000, 2000, 4000, estimate = c·20,640². **Cross-check:** measured growth between consecutive sizes, k = T(n)/T(n/2), b = log₂ k, estimate = T(n)·(20,640/n)^b. Report all estimates and their range per method (sensitivity, not a confidence interval); compare the methods at the same base size and explain any gap. The growth method assumes the observed exponent holds up to 20,640, and noise in one ratio is amplified over the ×5.16 jump, so `c` stays the main estimate | **`analysis/extrapolation`**, `config.py`, `main.py` | c: T(2000) = 0.5 s → ≈ 53.3 s; growth: T(2000) = 0.5, T(4000) = 2.1 → b ≈ 2.07 → ≈ 63 s *(illustrative)* |
-| U-22 | How to choose the "best-performing algorithm" when three metrics are measured | §4.3 (9), §4.5 | Lowest median runtime decides; comparisons and writes justify it. **Descriptive rule:** if the fastest algorithm's max run ≥ the runner-up's min run (their min–max ranges overlap), report "no clear winner" and explain | report (`results/cases.csv` supplies median/min/max) | Sorted input: bubble wins on runtime and comparisons |
+| U-17 | "Number of values that occur more than once" | §4.4 | **Open** (asked to the instructor). For now report both: distinct values that repeat, and observations belonging to them | **`data/inspection`**, `experiments/repeated_values`, `experiments/common` | `[1,1,2,3,3,3]` → 2 and 5 |
+| U-22 | How to choose the "best-performing algorithm" when three metrics are measured | §4.3 (9), §4.5 | **Open** (asked to the instructor). Draft rule: lowest median runtime decides; comparisons and writes justify it; if the fastest algorithm's max run ≥ the runner-up's min run, report "no clear winner". Report only; no code depends on it | report (`results/cases.csv` supplies median/min/max) | Sorted input: bubble wins on runtime and comparisons |
 
 ### 3.3 Design decisions (not from the PDF)
 
@@ -444,14 +471,15 @@ Implementation mechanics the PDF doesn't address, listed so per-file requirement
 
 | ID | Decision |
 |---|---|
-| D-01 | Sorts count with local integers and build `SortStats` once, on return |
-| D-02 | Merge sort's recursive helper returns its counts; the parent adds them up (no shared counter object) |
+| D-01 | Counted sorts count with local integers and build `SortStats` once, on return; plain sorts have no counters |
+| D-02 | Counted merge sort's recursive helper returns its counts; the parent adds them up (no shared counter object) |
 | D-03 | `main.py all` is the only official run. It first deletes any old `metadata.json`, overwrites only the files it generates, and writes `metadata.json` last, only on success. Single-experiment commands are for development and write to `--out` (default `results/dev/`, git-ignored) |
 | D-04 | All tunable values live in `Settings`, passed into functions, so tests can run with small sizes and temporary paths |
 | D-05 | `metadata.json` records seeds, sizes, timing tiers, Python version and the dataset's SHA-256 |
 | D-06 | One feature per folder (`implementation/` + `testing/`); shared definitions in `common/`; a README per main folder |
 | D-07 | Garbage collection is disabled during timed batches and restored to its **previous** state afterwards (`was = gc.isenabled()` … `if was: gc.enable()`). The PDF doesn't mention GC; this reduces timing noise |
 | D-08 | To verify every output (U-15), outputs are stored in a list allocated before the clock starts; storing them happens inside the timed region and is reported as harness overhead |
+| D-10 | Plain and counted versions are kept identical by a comparison-trace test: both run on `logged_values` inputs (sorted, reversed, duplicates, random) and must log the same comparison sequence, whose length equals the counted comparisons |
 | D-09 | Plots are **required submission outputs** (§5), even though matplotlib is optional (§2). The official plots are made with matplotlib. If it's missing, `all` still completes but prints "INCOMPLETE: plots missing", and the README explains how to build the same charts from the CSVs in Excel/Sheets and commit them to `results/` |
 
 ### 3.4 Known limitations
@@ -462,7 +490,7 @@ To be stated in the report's limitations section (R-46).
 |---|---|---|
 | L-01 | Repeated timings measure noise on **one** sample per case, not robustness across different samples | Q3–Q5, Q12, decision guide |
 | L-02 | Fast single-sort cases in the normal tier (e.g. bubble sort on sorted input, n = 2000) are the noisiest timings | Q9, decision guide |
-| L-03 | Timings include instrumentation and harness overhead (counters, defensive copy, output storage), so they are not "pure" algorithm times | All runtime results |
+| L-03 | Timings exclude the counters but include harness overhead (the slicing copy of the input, storing each output for verification, function calls), so they are not "pure" algorithm times | All runtime results |
 
 ---
 
@@ -516,53 +544,58 @@ To be stated in the report's limitations section (R-46).
 
 | ID | Requirement | Satisfies | Example |
 |---|---|---|---|
-| F-STA-1 | `SortStats` holds comparisons, writes, swaps (`None` for merge sort) | R-15, R-24, R-34, U-18 | `SortStats(3, 4, 2)` |
+| F-STA-1 | `SortStats` holds comparisons, writes, swaps (`None` for merge sort) | R-15, R-24, R-34, U-18 | `SortStats(4, 4, 2)` |
+| F-SRT-1 | `common/testing/logged_value.py`: `LoggedValue` records every comparison; each sort's tests compare the plain and counted traces | U-11, D-10 | `bubble_sort` and `counted_bubble_sort` on `[3,1,2]` log the same 4 comparisons |
 
 ### 4.7 `sorts/bubble_sort`
 
 | ID | Requirement | Satisfies | Example |
 |---|---|---|---|
-| F-BUB-1 | Copies the input first and returns a new ascending list; the input is unchanged; the copy is not counted | R-01, R-13, R-50, U-10 | `[3,1,2]` → `[1,2,3]` |
-| F-BUB-2 | Counts each `a[j] > a[j+1]` as one comparison | R-14 | `[3,1,2]` → 3 comparisons |
+| F-BUB-1 | Both versions copy the input by slicing and return a new ascending list; the input is unchanged; the copy is not counted | R-01, R-13, R-50, U-10 | `[3,1,2]` → `[1,2,3]` |
+| F-BUB-2 | Counted version counts each `a[j-1] > a[j]` as one comparison | R-14 | `[3,1,2]` → 4 comparisons |
 | F-BUB-3 | Each swap = 2 writes and 1 swap | R-15 | `[3,1,2]` → 2 swaps, 4 writes |
-| F-BUB-4 | Stops after a pass with no swaps | R-17, R-35a | `[1,2,3,4,5]` → 4 comparisons, 0 swaps |
-| F-BUB-5 | Inner range shrinks by one per pass | U-07 | Reversed n = 5 → 10 comparisons, 10 swaps |
-| F-BUB-6 | Local integer counters; `SortStats` built once on return | D-01, U-11 | — |
+| F-BUB-4 | Stops after a full pass with no swaps | R-17, R-35a | `[1,2,3,4,5]` → 4 comparisons, 0 swaps |
+| F-BUB-5 | Every pass covers the whole list, as in the lecture code | U-07 | Reversed n = 5 → 20 comparisons, 10 swaps |
+| F-BUB-6 | Counted version: local integer counters; `SortStats` built once on return | D-01 | — |
+| F-BUB-7 | Two files with the same loops: `bubble_sort` (plain, timed) and `counted_bubble_sort` (counts); same comparison trace | U-11, D-10 | — |
 
 ### 4.8 `sorts/selection_sort`
 
 | ID | Requirement | Satisfies | Example |
 |---|---|---|---|
-| F-SEL-1 | Copies the input first and returns a new ascending list; the input is unchanged; the copy is not counted | R-01, R-13, R-50, U-10 | `[3,1,2]` → `[1,2,3]` |
-| F-SEL-2 | Counts every comparison made while searching for the minimum | R-14, R-35b | Any n = 5 → 10 comparisons |
-| F-SEL-3 | Swaps only when the minimum is not in place; swap = 2 writes | R-15, R-18 | `[1,2,3]` → 0 writes; `[3,1,2]` → 2 swaps, 4 writes |
-| F-SEL-4 | Local integer counters; `SortStats` built once on return | D-01, U-11 | — |
+| F-SEL-1 | Both versions copy the input by slicing and return a new ascending list; the input is unchanged; the copy is not counted | R-01, R-13, R-50, U-10 | `[3,1,2]` → `[1,2,3]` |
+| F-SEL-2 | Counted version counts every comparison made while searching for the minimum | R-14, R-35b | Any n = 5 → 10 comparisons |
+| F-SEL-3 | Swaps only when the minimum is not in place (at most one swap per position, PDF rule, not the lecture's); swap = 2 writes | R-15, R-18 | `[1,2,3]` → 0 writes; `[3,1,2]` → 2 swaps, 4 writes |
+| F-SEL-4 | Counted version: local integer counters; `SortStats` built once on return | D-01 | — |
+| F-SEL-5 | Two files with the same loops: `selection_sort` (plain, timed) and `counted_selection_sort` (counts); same comparison trace | U-11, D-10 | — |
 
 ### 4.9 `sorts/merge_sort`
 
 | ID | Requirement | Satisfies | Example |
 |---|---|---|---|
-| F-MRG-1 | Returns a new ascending list; the input is unchanged (splitting by slicing never touches it); splitting/slicing copies are not counted | R-01, R-13, R-50, U-10 | `[2,1]` → `[1,2]` |
-| F-MRG-1b | Counts each executed `left[i] <= right[j]` as one comparison; moving a leftover tail costs no comparisons | R-14 | `[2,1]` → 1 comparison |
+| F-MRG-1 | Both versions return a new ascending list; the input is unchanged (splitting by slicing never touches it) | R-01, R-13, R-50, U-10 | `[2,1]` → `[1,2]` |
+| F-MRG-1b | Counted version counts each executed `left[i] <= right[j]` as one comparison; moving a leftover tail costs no comparisons | R-14 | `[2,1]` → 1 comparison |
 | F-MRG-2 | Each value placed in the merged output = 1 write, including leftover tails | R-16 | `[1,2,3,4]` → 8 writes |
 | F-MRG-3 | Slicing/splitting copies are not counted | R-16 | — |
-| F-MRG-4 | Ties take the left element (`<=`) | R-19 | Equal keys keep left-before-right |
-| F-MRG-5 | Counts returned per recursive call and summed by the parent; `merge_sort` builds `SortStats` once | D-01, D-02 | `[1,2,3,4]` → 4 comparisons |
+| F-MRG-4 | Ties take the left element (`<=`, PDF rule; the lecture uses `<`) | R-19 | Equal keys keep left-before-right |
+| F-MRG-5 | Counted version: counts returned per recursive call and summed by the parent; `SortStats` built once | D-01, D-02 | `[1,2,3,4]` → 4 comparisons |
 | F-MRG-6 | `swaps` is `None` | U-18 | — |
+| F-MRG-7 | Two files with the same structure: `merge_sort` (plain, timed) and `counted_merge_sort` (counts); same comparison trace | U-11, D-10 | — |
 
 ### 4.10 `timing/benchmark`
 
 | ID | Requirement | Satisfies | Example |
 |---|---|---|---|
-| F-BEN-1 | Uses `time.perf_counter()`; the timed region holds only the sort calls and output storage | R-20, D-08 | — |
-| F-BEN-2 | Runs `timed_batches` (5) batches of `repetitions_for(input_size)` sorts on the same input | R-25, R-27, U-13 | n = 5 → 5 × 1,000 sorts |
+| F-BEN-1 | Uses `time.perf_counter()`; the timed region holds only the plain sort's calls and output storage | R-20, U-11, D-08 | — |
+| F-BEN-2 | Runs `timed_batches` (5) batches of `repetitions_for(input_size)` plain sorts on the same input | R-25, R-27, U-13 | n = 5 → 5 × 1,000 sorts |
 | F-BEN-3 | Records seconds per sort for each batch as a tuple, plus their median (via `median_of`), min and max, computed once | R-24, R-25 | batch 0.0021 s ÷ 1,000 = 2.1 µs |
-| F-BEN-4 | Median computed with our merge sort | U-16 | `median_of([3,1,2]) == 2` |
-| F-BEN-5 | Verifies every timed output against `sorted()` after the clock stops | R-03, R-21, U-15 | Wrong output → `VerificationError` |
-| F-BEN-6 | Checks counts are identical across runs and the input is unchanged | R-13, R-26, R-51 | — |
+| F-BEN-4 | Median computed with our plain merge sort | U-16 | `median_of([3,1,2]) == 2` |
+| F-BEN-5 | Verifies every timed and counted output against `sorted()` after the clock stops | R-03, R-21, U-15 | Wrong output → `VerificationError` |
+| F-BEN-6 | Checks the counts are identical across the batches and the input is unchanged | R-13, R-26, R-51 | — |
 | F-BEN-7 | Disables garbage collection while timing; restores the previous state | D-07 | — |
-| F-BEN-8 | Timing includes the defensive copy and the counters | U-10, U-11 | — |
+| F-BEN-8 | Timing includes the slicing copy and output storage, never the counters | U-10, U-11, L-03 | — |
 | F-BEN-9 | `repetitions_for(input_size, settings)` returns 1,000 for input_size ≤ 20 and 1 otherwise | R-27, U-13, U-14 | `repetitions_for(20) == 1000`, `repetitions_for(250) == 1` |
+| F-BEN-10 | Runs the counted sort once per batch, outside the clock; its `SortStats` is returned | R-24, R-26, U-11 | 5 batches → 5 counted calls |
 
 ### 4.11 `experiments/common/records.py`
 
@@ -571,14 +604,14 @@ To be stated in the report's limitations section (R-46).
 | F-REC-1 | `CaseResult` holds labels, `SortStats` and `TimingResult` for one case; `case_row` flattens it to a `CASE_FIELDS` row | R-24, R-34 | — |
 | F-REC-2 | `write_cases`, `write_runs` and `write_rows` write the schemas in §1.6 with explicit headers (`CASE_FIELDS`, etc.); an empty list writes a header-only file | R-44, R-52 | 45 rows in `cases.csv` |
 | F-REC-5 | `read_cases` converts types (ints, floats, "n/a" → `None`) and rejects malformed numbers; a write → read round trip returns equal values (tested in `experiments/common/testing/test_records.py`) | R-51 | `"n/a"` → `None`; `"abc"` in `n` → `ValueError` |
-| F-REC-3 | `ALGORITHMS` maps names to the three sort functions | R-12 | `ALGORITHMS["merge"]` |
+| F-REC-3 | `ALGORITHMS` maps each name to its (plain sort, counted sort) pair | R-12, U-11 | `ALGORITHMS["merge"] == (merge_sort, counted_merge_sort)` |
 | F-REC-4 | Merge sort's swaps are written as empty / "n/a" | U-18 | — |
 
 ### 4.12 `experiments/scaling`
 
 | ID | Requirement | Satisfies | Example |
 |---|---|---|---|
-| F-SCL-1 | One seeded `median_income` sample per size in `scaling_sizes` | R-09, R-23, U-04, U-06 | 8 samples |
+| F-SCL-1 | One seeded sample of `scaling_column` (`median_income`) per size in `scaling_sizes` | R-09, R-23, U-04, U-06 | 8 samples |
 | F-SCL-2 | The same sample goes to all three algorithms | R-12, R-23 | — |
 | F-SCL-3 | Returns one `CaseResult` per algorithm × size (24 with the default sizes) with runtime, comparisons and writes | R-24 | — |
 | F-SCL-4 | Results provide the evidence for Q3–Q5 | R-28, R-29, R-31 | — |
@@ -587,7 +620,7 @@ To be stated in the report's limitations section (R-46).
 
 | ID | Requirement | Satisfies | Example |
 |---|---|---|---|
-| F-IOR-1 | One `order_sample_size` `median_income` sample, ordered by `shuffle_indices`, then turned into four orders by `make_orders` | R-09, R-32, R-33, U-03 | n = 2000 |
+| F-IOR-1 | One `order_sample_size` sample of `order_column` (`median_income`), ordered by `shuffle_indices`, then turned into four orders by `make_orders` | R-09, R-32, R-33, U-03 | n = 2000 |
 | F-IOR-2 | Every algorithm runs on every order: 12 cases with comparisons, writes, swaps, median runtime | R-12, R-34 | — |
 | F-IOR-3 | Results provide the evidence for Q6–Q11 | R-35a – R-35f | Q10: reversed → bubble swaps = number of strict inversions (1,999,000 if all 2,000 values are distinct) |
 
@@ -612,11 +645,11 @@ To be stated in the report's limitations section (R-46).
 
 | ID | Requirement | Satisfies | Example |
 |---|---|---|---|
-| F-EXT-1 | Main method, on scaling rows only: for each available base size, c = T(n)/n², estimate = c · target_n² (official target 20,640) | R-29, U-19 | T(2000) = 0.5 s → c = 1.25·10⁻⁷ → ≈ 53.3 s *(illustrative)* |
-| F-EXT-2 | Cross-check, on scaling rows only: for each base n with a measured T(n/2), k = T(n)/T(n/2), b = log₂ k, estimate = T(n) · (target_n/n)^b | R-29, U-19 | T(2000) = 0.5, T(4000) = 2.1 → k = 4.2, b ≈ 2.07 → ≈ 63 s *(illustrative)* |
-| F-EXT-3 | `main analyze` calls `estimate_range` once per method and prints both ranges; `extrapolation.csv` lists every estimate with its method, all rows using `EXTRAPOLATION_FIELDS` | R-29, U-19 | c: 51–56 s · growth: … |
-| F-EXT-4 | Compare the methods at the **same** base size; label the growth estimate as assuming the observed exponent holds up to 20,640 | R-29, U-19 | base 4000: c ≈ 55.9 s vs growth ≈ 62.8 s *(illustrative)* |
-| F-EXT-5 | Reject non-positive timings before dividing or taking logarithms | R-29 | T = 0 → `ValueError` |
+| F-EXT-1 | `bubble_times` takes bubble sort's scaling median times (`median_income`, random) at the base sizes 250, 500, 1000, 2000, 4000 only | R-29, U-19 | n = 2000 rows of 4.3/4.4 ignored |
+| F-EXT-2 | `fit_quadratic` fits T(n) = a₀ + a₁·n + a₂·n² by least squares (normal equations from Σnᵖ and Σ T·nᵖ) solved with Cramer's rule (`determinant_3x3`), standard library only | R-02, R-29, U-19 | times 0.00775, 0.027, 0.103, 0.405, 1.609 → (0.001, 2·10⁻⁶, 10⁻⁷) |
+| F-EXT-3 | `extrapolate_bubble` returns one `EXTRAPOLATION_FIELDS` row with estimate = `predict_time` at 20,640, and measured-vs-fitted rows (`FITTED_FIELDS`); `main analyze` writes the row to `extrapolation.csv` and prints both | R-29, U-19 | estimate 42.64324 s for the times above |
+| F-EXT-4 | The report shows the fitted curve, the estimate, the measured-vs-fitted table, and why the estimate is approximate (5 points, ×5.16 beyond the largest size, timing noise) | R-29, U-19 | — |
+| F-EXT-5 | Rejects a missing or duplicated base size, a non-positive or non-finite time, fewer than 3 distinct sizes, and a singular system | R-29 | T = 0 → `ValueError` |
 
 ### 4.17 `plots/charts`
 
@@ -642,7 +675,7 @@ To be stated in the report's limitations section (R-46).
 
 | ID | Requirement | Satisfies | Example |
 |---|---|---|---|
-| F-E2E-1 | Runs `main(['all'], settings=…)` on a tiny temporary CSV with small `Settings`; checks every CSV and `metadata.json` exist, and PNGs only if `matplotlib_available()` | R-44, R-51, D-04 | 30-row CSV, sizes (5, 10), `order_sample_size` 10 |
+| F-E2E-1 | Runs `main(['all'], settings=…)` on a tiny temporary CSV with small `Settings`; checks every CSV and `metadata.json` exist, and PNGs only if `matplotlib_available()` | R-44, R-51, D-04 | 30-row CSV, sizes (5, 10, 15, 20, 25), `order_sample_size` 10 |
 | F-E2E-2 | Never writes into the committed `results/` | D-03 | Temporary directory |
 
 ### 4.20 READMEs
@@ -657,9 +690,9 @@ To be stated in the report's limitations section (R-46).
 
 | ID | Requirement | Satisfies |
 |---|---|---|
-| F-RPT-1 | Answers Q1–Q17 with evidence from `results/`; Q9 in 2–3 sentences per order, winner chosen per U-22; Q14 gives ≥ 1 reason, Q15 ≥ 2 reasons | R-23 – R-31, R-35a – R-35f, R-39, R-41a – R-41e, R-53, U-22 |
+| F-RPT-1 | Answers Q1–Q17 with evidence from `results/`; Q9 in 2–3 sentences per order, winner chosen per U-22 (open); Q14 gives ≥ 1 reason, Q15 ≥ 2 reasons | R-23 – R-31, R-35a – R-35f, R-39, R-41a – R-41e, R-53, U-22 |
 | F-RPT-2 | Decision guide with all six situations | R-40 |
-| F-RPT-3 | Introduction with the key questions and a brief explanation of each algorithm; implementation section: language, tools, input preparation, counting conventions (incl. slicing not counted), all assumptions (U-xx) and design decisions (D-xx); results for every experiment incl. the bubble extrapolation | R-16, R-22, R-46 |
+| F-RPT-3 | Introduction with the key questions and a brief explanation of each algorithm; implementation section: language, tools, input preparation, counting conventions (incl. slicing not counted), the plain/counted split (counters not timed), the instructor's decisions and our own choices (U-xx) and design decisions (D-xx); results for every experiment incl. the bubble extrapolation | R-16, R-22, R-46 |
 | F-RPT-4 | Limitations (L-01 – L-03) and sound conclusions; clear organisation | R-46, R-54, L-01 – L-03 |
 | F-RPT-5 | Design-flow description (adapted from §1.3 of this document) | R-47 |
 | F-RPT-6 | ≤ 10 pages, single column, Arial 11, GitHub link, signed peer form at the end of the report, submitted on Canvas by the deadline | R-42, R-43, R-45, R-48 |
@@ -684,4 +717,4 @@ To be stated in the report's limitations section (R-46).
 | R-42 – R-49 | F-DOC-*, F-REC-2, F-MAIN-3, F-MAIN-5, F-RPT-3 – F-RPT-6, F-PRS-1 |
 | R-50 – R-54 | F-BUB-1, F-SEL-1, F-MRG-1, F-BEN-6, F-MAIN-4, F-PLT-*, F-RPT-1, F-RPT-4, F-PRS-1 |
 | U-01 – U-22 (excl. retired U-12, U-20, U-21) | Each listed in at least one F-row or in F-RPT-1/F-RPT-3 |
-| D-01 – D-09, L-01 – L-03 | F-rows citing them; L-xx in F-RPT-4 |
+| D-01 – D-10, L-01 – L-03 | F-rows citing them; L-xx in F-RPT-4 |

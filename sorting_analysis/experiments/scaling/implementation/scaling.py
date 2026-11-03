@@ -12,7 +12,8 @@ def run_scaling(rows, usable_indices, settings=DEFAULT_SETTINGS):
     """
     Description:
     - Draw one seeded sample per size in settings.scaling_sizes.
-    - Measure every algorithm on the same sample with benchmark.
+    - Measure every algorithm on the same sample with benchmark(plain, counted, values, settings),
+      taking both functions from ALGORITHMS.
 
     Input arguments:
        rows (list[dict]): Raw rows from load_csv (column name -> string).

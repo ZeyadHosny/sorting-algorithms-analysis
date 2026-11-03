@@ -11,8 +11,11 @@ DEFAULT_CSV_PATH = "housing.csv"
 DEFAULT_RESULTS_FOLDER = "results"
 # The three numeric columns the PDF requires.
 DEFAULT_SELECTED_COLUMNS = ("median_income", "housing_median_age", "median_house_value")
-# Column with little duplication, used by the scaling and input-order experiments.
+# Column of the scaling experiment (PDF 4.2: median_income, little duplication).
 DEFAULT_SCALING_COLUMN = "median_income"
+# Column of the input-order experiment (PDF 4.3: median_income); must be one of the selected columns,
+# so the repeated-values experiment repeats this exact input.
+DEFAULT_ORDER_COLUMN = "median_income"
 # Seed for drawing sample row indices.
 DEFAULT_SAMPLE_SEED = 42
 # Seed for the random order shared by the input-order and repeated-values experiments.
@@ -25,7 +28,7 @@ DEFAULT_SCALING_SIZES = (5, 10, 20, 250, 500, 1000, 2000, 4000)
 DEFAULT_ORDER_SAMPLE_SIZE = 2000
 # Timed batches per case; their median is reported.
 DEFAULT_TIMED_BATCHES = 5
-# Inputs up to this size are "very small".
+# Inputs up to this size are "very small" (5, 10 and 20, as confirmed by the instructor).
 DEFAULT_SMALL_INPUT_LIMIT = 20
 # Sorts per timed batch for very small inputs.
 DEFAULT_SMALL_INPUT_REPETITIONS = 1000
@@ -33,8 +36,8 @@ DEFAULT_SMALL_INPUT_REPETITIONS = 1000
 DEFAULT_NORMAL_INPUT_REPETITIONS = 1
 # Full dataset size for the bubble sort estimate.
 DEFAULT_EXTRAPOLATION_TARGET_SIZE = 20640
-# Measured sizes used as bases for the estimate.
-DEFAULT_EXTRAPOLATION_BASE_SIZES = (1000, 2000, 4000)
+# Measured sizes the quadratic curve is fitted to (instructor's choice).
+DEFAULT_EXTRAPOLATION_BASE_SIZES = (250, 500, 1000, 2000, 4000)
 
 
 class Settings:
@@ -48,6 +51,7 @@ class Settings:
     # Constructor
     def __init__(self, csv_path=DEFAULT_CSV_PATH, results_folder=DEFAULT_RESULTS_FOLDER,
                  selected_columns=DEFAULT_SELECTED_COLUMNS, scaling_column=DEFAULT_SCALING_COLUMN,
+                 order_column=DEFAULT_ORDER_COLUMN,
                  sample_seed=DEFAULT_SAMPLE_SEED, shuffle_seed=DEFAULT_SHUFFLE_SEED,
                  nearly_sorted_seed=DEFAULT_NEARLY_SORTED_SEED, scaling_sizes=DEFAULT_SCALING_SIZES,
                  order_sample_size=DEFAULT_ORDER_SAMPLE_SIZE, timed_batches=DEFAULT_TIMED_BATCHES,
@@ -64,7 +68,8 @@ class Settings:
            csv_path (str): Dataset path, e.g. 'housing.csv'.
            results_folder (str): Folder for official outputs, e.g. 'results'.
            selected_columns (tuple[str]): The three numeric columns used by the experiments.
-           scaling_column (str): Column of the scaling and input-order experiments.
+           scaling_column (str): Column of the scaling experiment.
+           order_column (str): Column of the input-order experiment; one of selected_columns.
            sample_seed (int): Seed for drawing sample row indices.
            shuffle_seed (int): Seed for the random order shared by the input-order and repeated-values experiments.
            nearly_sorted_seed (int): Seed for the swaps of the nearly sorted input.
@@ -75,7 +80,7 @@ class Settings:
            small_input_repetitions (int): Sorts per timed batch for very small inputs.
            normal_input_repetitions (int): Sorts per timed batch for all other inputs.
            extrapolation_target_size (int): Input size of the bubble sort estimate.
-           extrapolation_base_sizes (tuple[int]): Measured sizes used as bases for the estimate.
+           extrapolation_base_sizes (tuple[int]): Measured sizes the quadratic curve is fitted to.
 
         Return:
             None
@@ -84,6 +89,7 @@ class Settings:
         self.results_folder = results_folder
         self.selected_columns = selected_columns
         self.scaling_column = scaling_column
+        self.order_column = order_column
         self.sample_seed = sample_seed
         self.shuffle_seed = shuffle_seed
         self.nearly_sorted_seed = nearly_sorted_seed

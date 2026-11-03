@@ -1,9 +1,11 @@
 """
 Description:
 - Repeated, verified timing of one sort on one input.
-- The timed region holds only the sort calls and storing their outputs; verification
-- against sorted() runs after the clock stops. Garbage collection is off while timing.
-- Spec: ARCHITECTURE.md F-BEN-1 - F-BEN-8.
+- Only the plain sort (no counters) is timed. The timed region holds only its calls and storing
+  their outputs; verification against sorted() runs after the clock stops.
+- The counted sort supplies the operation counts; it runs outside the clock.
+- Garbage collection is off while timing.
+- Spec: ARCHITECTURE.md F-BEN-1 - F-BEN-10.
 """
 
 from sorting_analysis.config import DEFAULT_SETTINGS
@@ -147,16 +149,22 @@ def repetitions_for(input_size, settings=DEFAULT_SETTINGS):
     raise NotImplementedError("repetitions_for: not implemented yet")
 
 
-# Function to time one sort on one input
-def benchmark(sort_function, values, settings=DEFAULT_SETTINGS):
+# Function to time one sort on one input and collect its counts
+def benchmark(sort_function, counted_sort_function, values, settings=DEFAULT_SETTINGS):
     """
     Description:
-    - Run settings.timed_batches batches of repetitions_for(len(values), settings) sorts,
-      timed with time.perf_counter().
-    - Verify every output against sorted() after the clock stops; check counts and the input.
+    - Run settings.timed_batches batches. In each batch:
+      1. outside the clock, run counted_sort_function once; check its output against sorted(),
+         that the input is unchanged, and that its counts equal the first batch's counts;
+      2. time repetitions_for(len(values), settings) calls of sort_function with time.perf_counter(),
+         storing each output;
+      3. after the clock stops, verify every stored output against sorted() and that the input is unchanged.
+    - Report seconds per sort for each batch, and their median, min and max.
 
     Input arguments:
-       sort_function (function): bubble_sort, selection_sort or merge_sort.
+       sort_function (function): Plain sort that is timed: bubble_sort, selection_sort or merge_sort.
+       counted_sort_function (function): Its counted version: counted_bubble_sort, counted_selection_sort
+          or counted_merge_sort.
        values (list[float]): Input values; must be unchanged afterwards.
        settings (Settings): Run settings (timed_batches and the repetition values).
 
@@ -170,8 +178,8 @@ def benchmark(sort_function, values, settings=DEFAULT_SETTINGS):
 def median_of(values):
     """
     Description:
-    - Sort a copy with our merge_sort and take the middle value
-    - (the mean of the two middle values for an even count).
+    - Sort the values with our plain merge_sort (sorted() is used only for verification) and take
+      the middle value (the mean of the two middle values for an even count).
 
     Input arguments:
        values (list[float]): At least one value.

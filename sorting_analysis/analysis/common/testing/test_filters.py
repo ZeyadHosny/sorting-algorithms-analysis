@@ -3,6 +3,7 @@ import unittest
 
 from sorting_analysis.analysis import scaling_cases  # noqa: F401
 
+# Skip message of the drafted tests that are not written yet.
 NOT_WRITTEN = "test not implemented yet"
 
 

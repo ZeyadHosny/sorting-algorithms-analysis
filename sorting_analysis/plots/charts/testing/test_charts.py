@@ -3,6 +3,7 @@ import unittest
 
 from sorting_analysis.plots import matplotlib_available, plot_input_order, plot_repeated_values, plot_scaling  # noqa: F401
 
+# Skip message of the drafted tests that are not written yet.
 NOT_WRITTEN = "test not implemented yet"
 
 

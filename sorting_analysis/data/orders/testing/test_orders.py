@@ -3,6 +3,7 @@ import unittest
 
 from sorting_analysis.data import ascending, descending, make_orders, nearly_sorted  # noqa: F401
 
+# Skip message of the drafted tests that are not written yet.
 NOT_WRITTEN = "test not implemented yet"
 
 

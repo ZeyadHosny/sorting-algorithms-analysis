@@ -30,7 +30,7 @@ Run from the repository root.
 | `python main.py scaling` | Scaling experiment only (development) |
 | `python main.py order` | Input-order experiment only (development) |
 | `python main.py dupes` | Repeated-values experiment only (development) |
-| `python main.py analyze` | Growth factors and bubble sort extrapolation from `cases.csv` |
+| `python main.py analyze` | Growth factors and the bubble sort estimate (quadratic regression) from `cases.csv` |
 | `python main.py plot` | Charts from `cases.csv` (requires matplotlib) |
 | `python main.py all` | **Official run**: inspection, all experiments, analysis, charts, metadata |
 | `python -m unittest discover` | Run all tests |
@@ -46,20 +46,23 @@ Exit codes: `0` success (charts may be missing) · `1` computation failure · `2
 ## Method
 
 - **Sizes:** 5, 10, 20, 250, 500, 1000, 2000, 4000 (scaling); 2000 (input order and repeated values).
-- **Seeds:** sample 42, shuffle 43, nearly sorted 44. All settings are in `sorting_analysis/config.py`.
-- **Timing:** `time.perf_counter()`, median of 5 timed batches. Inputs with n ≤ 20 are sorted 1,000 times per batch; larger inputs once. Loading and input preparation are not timed. Every output is verified against `sorted()`.
+- **Seeds:** sample 42, shuffle 43, nearly sorted 44. Samples are drawn as row indices without replacement; the repeated-values experiment uses the same indices, in the same order, as the input-order experiment for all three columns. All settings are in `sorting_analysis/config.py`.
+- **Two versions per algorithm:** a plain version, which is timed, and a counted version with the same loops, which supplies the counts. Counters are never inside the timing.
+- **Timing:** `time.perf_counter()`, median of 5 timed batches. Inputs with n ≤ 20 (very small: 5, 10, 20) are sorted 1,000 times per batch; larger inputs once. Loading and input preparation are not timed. Every output is verified against `sorted()`, after the clock stops.
+- **Algorithms:** bubble sort as in the lecture (full passes, stop after a pass with no swaps); selection sort swaps at most once per position; merge sort takes the left value on ties.
 - **Comparisons:** comparisons between two data values.
-- **Writes:** a swap is 2 writes; each value placed into a merged list is 1 write, including leftover tails; the initial copy of the input and the lists created by slicing are not counted.
+- **Writes:** a swap is 2 writes (swaps are also reported); each value placed into a merged list is 1 write, including leftover tails; copies made by slicing, including the initial `values[:]` copy, are not counted.
+- **Bubble sort estimate for 20,640 values:** least-squares fit of T(n) = a₀ + a₁·n + a₂·n² to the median times at n = 250, 500, 1000, 2000, 4000, evaluated at n = 20,640.
 
 ## Project structure
 
 | Folder | Contents |
 |---|---|
 | `sorting_analysis/data/` | Dataset loading, inspection, sampling, input orders |
-| `sorting_analysis/sorts/` | The three sorting algorithms |
+| `sorting_analysis/sorts/` | The three sorting algorithms (plain and counted versions) |
 | `sorting_analysis/timing/` | Verified, repeated timing |
 | `sorting_analysis/experiments/` | The three experiments and their result records |
-| `sorting_analysis/analysis/` | Growth factors and extrapolation |
+| `sorting_analysis/analysis/` | Growth factors and the bubble sort estimate |
 | `sorting_analysis/plots/` | Charts |
 | `tests/` | End-to-end tests |
 | `results/` | Official outputs |

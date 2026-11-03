@@ -9,8 +9,8 @@ Official outputs, written only by `python main.py all`. Never edit these files b
 | `timing_runs.csv` | timed batch | experiment, algorithm, column, order, input_size, batch, seconds_per_sort |
 | `dupes_stats.csv` | column of the repeated-values experiment | column, sample_size, distinct, modal_value, modal_count, repeated_distinct, repeated_observations |
 | `growth.csv` | algorithm × doubling of n | algorithm, size_from, size_to, time_from_s, time_to_s, observed_factor, theoretical_factor |
-| `extrapolation.csv` | method × base size | method, half_size, base_size, base_time_s, constant_c, exponent_b, estimate_s |
+| `extrapolation.csv` | the bubble sort estimate (1 row) | method (`quadratic_fit`), sizes_used, a0, a1, a2, target_size, estimate_s: T(n) = a0 + a1·n + a2·n² fitted to n = 250 … 4000, evaluated at n = 20,640 |
 | `metadata.json` | run | seeds, sizes, timing tiers, Python version, dataset SHA-256, timestamp, plots_status, generated_files |
 | `*.png` | chart | runtime, comparisons and writes per experiment |
 
-Times are seconds per sort. `swaps` is `n/a` for merge sort. `metadata.json` is written last and only when the run succeeds; `plots_status` is `missing` if the charts could not be drawn.
+Times are seconds per sort, measured on the plain sorts (no counters); counts come from the counted sorts. `swaps` is `n/a` for merge sort. `metadata.json` is written last and only when the run succeeds; `plots_status` is `missing` if the charts could not be drawn.

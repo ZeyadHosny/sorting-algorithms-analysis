@@ -3,6 +3,7 @@ import unittest
 
 from sorting_analysis.experiments import ALGORITHMS, read_cases, write_cases, write_rows, write_runs  # noqa: F401
 
+# Skip message of the drafted tests that are not written yet.
 NOT_WRITTEN = "test not implemented yet"
 
 
@@ -10,7 +11,7 @@ class TestRecords(unittest.TestCase):
     """CSV writing and reading of results."""
 
     def test_algorithms_map_to_the_three_sorts(self):
-        """ALGORITHMS has keys bubble, selection, merge."""
+        """ALGORITHMS has keys bubble, selection, merge, each mapped to (plain sort, counted sort)."""
         self.skipTest(NOT_WRITTEN)
 
     def test_case_row_flattens_a_case(self):

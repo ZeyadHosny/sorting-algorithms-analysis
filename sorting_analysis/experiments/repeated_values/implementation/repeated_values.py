@@ -12,7 +12,8 @@ def run_repeated_values(rows, usable_indices, settings=DEFAULT_SETTINGS):
     """
     Description:
     - Use the input-order experiment's row indices, in the same shuffled order, for each column.
-    - Record duplicate_stats per column and measure every algorithm on each column.
+    - Record duplicate_stats per column and measure every algorithm on each column with
+      benchmark(plain, counted, values, settings), taking both functions from ALGORITHMS.
 
     Input arguments:
        rows (list[dict]): Raw rows from load_csv (column name -> string).

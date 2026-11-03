@@ -3,6 +3,7 @@ import unittest
 
 from sorting_analysis.timing import TimingResult, VerificationError, benchmark, median_of, repetitions_for  # noqa: F401
 
+# Skip message of the drafted tests that are not written yet.
 NOT_WRITTEN = "test not implemented yet"
 
 
@@ -39,7 +40,7 @@ class TestTimingResult(unittest.TestCase):
 
 
 class TestBenchmark(unittest.TestCase):
-    """Batches, verification and side effects."""
+    """Batches, the two sort versions, verification and side effects."""
 
     def test_small_input_uses_small_reps(self):
         """5 values with default settings -> sorts_per_batch 1000, 5 batch times."""
@@ -49,20 +50,29 @@ class TestBenchmark(unittest.TestCase):
         """250 values -> sorts_per_batch 1, 5 batch times."""
         self.skipTest(NOT_WRITTEN)
 
+    def test_only_plain_sort_is_timed(self):
+        """A fake clock records when each sort runs: every counted call happens outside the timed region,
+        every plain call inside it."""
+        self.skipTest(NOT_WRITTEN)
+
+    def test_counted_sort_runs_once_per_batch(self):
+        """5 batches -> counted_sort_function called 5 times; the returned SortStats has its counts."""
+        self.skipTest(NOT_WRITTEN)
+
     def test_wrong_output_raises(self):
-        """A sort returning an unsorted list -> VerificationError."""
+        """A plain or counted sort returning an unsorted list -> VerificationError."""
         self.skipTest(NOT_WRITTEN)
 
     def test_every_repetition_is_verified(self):
-        """A sort that is wrong only on its first call and correct afterwards -> VerificationError."""
+        """A plain sort that is wrong only on its first call and correct afterwards -> VerificationError."""
         self.skipTest(NOT_WRITTEN)
 
     def test_changing_counts_raise(self):
-        """A sort whose counts differ between calls -> VerificationError."""
+        """A counted sort whose counts differ between calls -> VerificationError."""
         self.skipTest(NOT_WRITTEN)
 
     def test_modified_input_raises(self):
-        """A sort that mutates its input -> VerificationError."""
+        """A plain or counted sort that mutates its input -> VerificationError."""
         self.skipTest(NOT_WRITTEN)
 
     def test_garbage_collection_state_is_restored(self):

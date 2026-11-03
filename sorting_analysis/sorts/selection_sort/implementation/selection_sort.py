@@ -1,25 +1,24 @@
 """
 Description:
-- Selection sort that swaps only when the minimum is not already in place.
-- Spec: ARCHITECTURE.md F-SEL-1 - F-SEL-4.
+- Selection sort that swaps only when the minimum is not already in place, without counters:
+  the version that is timed.
+- Same loops as counted_selection_sort; the counters are the only difference.
+- Spec: ARCHITECTURE.md F-SEL-1 - F-SEL-5.
 """
-
-from sorting_analysis.sorts.common import SortStats  # noqa: F401  (returned by the sort)
 
 
 # Function to sort values with selection sort
 def selection_sort(values):
     """
     Description:
-    - Copy the input, then selection sort the copy.
-    - Every comparison made while searching for the minimum is counted.
-    - Swap only when the minimum is not already in place; a swap is 2 writes.
-    - The initial copy is not counted.
+    - Copy the input by slicing (values[:]), then for each position find the index of the minimum
+      of the remaining values and swap it into place only if it is not already there (at most one swap
+      per position, as the PDF requires; the lecture version swaps on every smaller value).
 
     Input arguments:
        values (list[float]): Values to sort; never modified.
 
     Return:
-        tuple: (new ascending list, SortStats), e.g. [3, 1, 2] -> ([1, 2, 3], 3 comparisons, 4 writes, 2 swaps).
+        list[float]: a new ascending list, e.g. [3, 1, 2] -> [1, 2, 3].
     """
     raise NotImplementedError("selection_sort: not implemented yet")

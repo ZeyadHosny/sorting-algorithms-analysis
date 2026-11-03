@@ -11,8 +11,10 @@ from sorting_analysis.config import DEFAULT_SETTINGS
 def run_input_order(rows, usable_indices, settings=DEFAULT_SETTINGS):
     """
     Description:
-    - Draw one order_sample_size sample and put it in the shared order with shuffle_indices(..., shuffle_seed).
-    - Build the four orders with make_orders and measure every algorithm on each.
+    - Draw one order_sample_size sample of settings.order_column and put it in the shared order with
+      shuffle_indices(..., shuffle_seed).
+    - Build the four orders with make_orders and measure every algorithm on each with
+      benchmark(plain, counted, values, settings), taking both functions from ALGORITHMS.
 
     Input arguments:
        rows (list[dict]): Raw rows from load_csv (column name -> string).

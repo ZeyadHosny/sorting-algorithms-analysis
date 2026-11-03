@@ -12,7 +12,7 @@ from sorting_analysis.sorts import merge_sort  # noqa: F401  (used by ascending)
 def ascending(values):
     """
     Description:
-    - Return a sorted copy produced by merge_sort.
+    - Return the new ascending list produced by our plain merge_sort (outside any timing).
 
     Input arguments:
        values (list[float]): Input values.

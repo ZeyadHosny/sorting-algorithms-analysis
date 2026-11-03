@@ -1,26 +1,24 @@
 """
 Description:
-- Top-down merge sort; ties take the left element first.
-- Spec: ARCHITECTURE.md F-MRG-1 - F-MRG-6, F-MRG-1b.
+- Top-down merge sort without counters: the version that is timed. Ties take the left element first.
+- Same structure as counted_merge_sort (and as the lecture, except <= on ties, which the PDF requires);
+  the counters are the only difference.
+- Spec: ARCHITECTURE.md F-MRG-1 - F-MRG-7.
 """
-
-from sorting_analysis.sorts.common import SortStats  # noqa: F401  (returned by the sort)
 
 
 # Function to sort values with merge sort
 def merge_sort(values):
     """
     Description:
-    - Sort values with top-down merge sort.
-    - Splitting by slicing creates new lists; slicing is not counted.
-    - Every value placed into a merged list is 1 write, including leftover tails.
-    - swaps is None: merge sort performs no swaps.
+    - Sort values with top-down merge sort. Splitting by slicing creates new lists,
+      so the input is never modified.
 
     Input arguments:
        values (list[float]): Values to sort; never modified.
 
     Return:
-        tuple: (new ascending list, SortStats), e.g. [2, 1] -> ([1, 2], 1 comparison, 2 writes, swaps None).
+        list[float]: a new ascending list, e.g. [2, 1] -> [1, 2].
     """
     raise NotImplementedError("merge_sort: not implemented yet")
 
@@ -29,14 +27,14 @@ def merge_sort(values):
 def _merge_sort_recursive(sublist):
     """
     Description:
-    - Split sublist in two, sort both halves, merge them.
-    - Each call returns its own counts; the parent adds them up.
+    - Return a copy (sublist[:]) if it has fewer than 2 values; otherwise split it in two by slicing,
+      sort both halves, and merge them.
 
     Input arguments:
        sublist (list[float]): Sublist to sort.
 
     Return:
-        tuple: (sorted list, comparisons, writes).
+        list[float]: the sorted sublist.
     """
     raise NotImplementedError("_merge_sort_recursive: not implemented yet")
 
@@ -45,14 +43,14 @@ def _merge_sort_recursive(sublist):
 def _merge(left_half, right_half):
     """
     Description:
-    - Each executed left_half[i] <= right_half[j] is 1 comparison; on ties the left element is taken.
-    - Copying a leftover tail costs writes but no comparisons.
+    - Append the smaller front value while both halves have values; on ties (left_half[i] <= right_half[j])
+      the left value is taken. Then append the leftover tail.
 
     Input arguments:
        left_half (list[float]): Sorted left half.
        right_half (list[float]): Sorted right half.
 
     Return:
-        tuple: (merged list, comparisons, writes), e.g. [1, 3], [2] -> ([1, 2, 3], 2, 3).
+        list[float]: the merged list, e.g. [1, 3], [2] -> [1, 2, 3].
     """
     raise NotImplementedError("_merge: not implemented yet")

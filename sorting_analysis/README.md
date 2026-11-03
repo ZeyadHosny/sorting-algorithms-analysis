@@ -15,10 +15,10 @@ Inside an area, implementation files import the specific module (e.g. `from sort
 | Area | Contents |
 |---|---|
 | [data/](data/README.md) | Load, inspect and sample the dataset; build input orders |
-| [sorts/](sorts/README.md) | Bubble, selection and merge sort with operation counts |
-| [timing/](timing/README.md) | Repeated, verified timing |
+| [sorts/](sorts/README.md) | Bubble, selection and merge sort: plain versions (timed) and counted versions (operation counts) |
+| [timing/](timing/README.md) | Repeated, verified timing of the plain sorts; counts from the counted sorts |
 | [experiments/](experiments/README.md) | Scaling, input-order and repeated-values experiments; result CSV files |
-| [analysis/](analysis/README.md) | Growth factors and bubble sort extrapolation |
+| [analysis/](analysis/README.md) | Growth factors and bubble sort estimate (quadratic regression) |
 | [plots/](plots/README.md) | Charts |
 
 Allowed imports: `sorts` imports nothing outside `sorts`; `data` and `timing` may use `config` and `sorts.merge_sort`; `experiments` may use `data`, `sorts`, `timing`; `analysis` and `plots` use `experiments.common`. Only `plots` imports matplotlib.
@@ -34,9 +34,9 @@ Allowed imports: `sorts` imports nothing outside `sorts`; `data` and `timing` ma
 |---|---|
 | `csv_path`, `results_folder` | `"housing.csv"`, `"results"` |
 | `selected_columns` | `("median_income", "housing_median_age", "median_house_value")` |
-| `scaling_column` | `"median_income"` |
+| `scaling_column`, `order_column` | `"median_income"`, `"median_income"` (one per experiment; `order_column` must be one of `selected_columns`) |
 | `sample_seed`, `shuffle_seed`, `nearly_sorted_seed` | 42, 43, 44 |
 | `scaling_sizes` | (5, 10, 20, 250, 500, 1000, 2000, 4000) |
 | `order_sample_size`, `timed_batches` | 2000, 5 |
 | `small_input_limit`, `small_input_repetitions`, `normal_input_repetitions` | 20, 1000, 1 |
-| `extrapolation_target_size`, `extrapolation_base_sizes` | 20640, (1000, 2000, 4000) |
+| `extrapolation_target_size`, `extrapolation_base_sizes` | 20640, (250, 500, 1000, 2000, 4000) |

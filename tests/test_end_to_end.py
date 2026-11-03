@@ -14,8 +14,11 @@ import unittest
 import main
 from sorting_analysis.config import Settings
 
+# Skip message of the drafted tests that are not written yet.
 NOT_WRITTEN = "test not implemented yet"
-SMALL = Settings(scaling_sizes=(5, 10), order_sample_size=10, extrapolation_base_sizes=(5, 10), small_input_repetitions=2)
+# Five scaling sizes, all fitted, so the quadratic regression has enough points (it needs at least 3).
+SMALL = Settings(scaling_sizes=(5, 10, 15, 20, 25), order_sample_size=10, extrapolation_base_sizes=(5, 10, 15, 20, 25),
+                 small_input_repetitions=2)
 
 
 def write_fixture_csv(path, rows=30):

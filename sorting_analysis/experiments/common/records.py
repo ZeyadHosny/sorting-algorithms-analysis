@@ -4,11 +4,16 @@ Description:
 - Spec: ARCHITECTURE.md F-REC-1 - F-REC-5.
 """
 
-from sorting_analysis.sorts import bubble_sort, merge_sort, selection_sort
+from sorting_analysis.sorts import (bubble_sort, counted_bubble_sort, counted_merge_sort, counted_selection_sort,
+                                    merge_sort, selection_sort)
 
 
-# Algorithm name -> sorting function, in the order used everywhere.
-ALGORITHMS = {"bubble": bubble_sort, "selection": selection_sort, "merge": merge_sort}
+# Algorithm name -> (plain sort, timed; counted sort, gives the counts), in the order used everywhere.
+ALGORITHMS = {
+    "bubble": (bubble_sort, counted_bubble_sort),
+    "selection": (selection_sort, counted_selection_sort),
+    "merge": (merge_sort, counted_merge_sort),
+}
 # CSV header of cases.csv.
 CASE_FIELDS = ("experiment", "algorithm", "column", "order", "input_size", "comparisons", "writes", "swaps",
                "sorts_per_batch", "median_s", "min_s", "max_s")

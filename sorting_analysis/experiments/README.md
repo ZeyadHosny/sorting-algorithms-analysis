@@ -1,6 +1,6 @@
 # experiments
 
-The three experiments. Each measures all three algorithms with `benchmark` and returns one `CaseResult` per algorithm and input.
+The three experiments. Each measures all three algorithms with `benchmark` (the plain sort is timed, the counted sort gives the counts) and returns one `CaseResult` per algorithm and input.
 
 | Feature | Purpose | Cases |
 |---|---|---|
@@ -15,7 +15,7 @@ The three experiments. Each measures all three algorithms with `benchmark` and r
 
 | Name | Input | Output |
 |---|---|---|
-| `ALGORITHMS` | — | `{"bubble", "selection", "merge"}` → sort function |
+| `ALGORITHMS` | — | `{"bubble", "selection", "merge"}` → `(plain sort, counted sort)`, e.g. `ALGORITHMS["bubble"] == (bubble_sort, counted_bubble_sort)` |
 | `CaseResult(experiment, algorithm, column, order, input_size, sort_stats, timing)` | labels, `SortStats`, `TimingResult` | read-only record of one case, with a getter per value |
 | `case_row(case)` | one case | dict with the `CASE_FIELDS` keys (used by `write_cases` and `main.py`) |
 | `write_cases(cases, path)` | cases, path | `cases.csv` with `CASE_FIELDS`; merge sort swaps written as `n/a` |

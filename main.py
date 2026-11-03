@@ -56,6 +56,7 @@ class InputError(Exception):
 # fixed fake values and never write files.
 # -----------------------------------------------------------------------------
 
+# Function to fake load_csv until it is implemented
 def mock_load_csv(path):
     if not os.path.isfile(path):
         raise FileNotFoundError(path)
@@ -63,15 +64,18 @@ def mock_load_csv(path):
     return [fake_row] * MOCK_ROW_COUNT
 
 
+# Function to fake complete_cases until it is implemented
 def mock_complete_cases(rows, columns):
     return list(range(len(rows)))
 
 
+# Function to fake inspect_data until it is implemented
 def mock_inspect_data(rows, columns):
     return [{"column": column, "rows": len(rows), "missing": 0, "distinct": 0, "excluded_rows": 0}
             for column in columns]
 
 
+# Function to build one fake case for the mocked experiments
 def mock_case(experiment, algorithm, column, order, input_size):
     """Fake case: n(n-1)/2 comparisons (n log n for merge sort), a fixed time per comparison."""
     if algorithm == "merge":
@@ -86,16 +90,19 @@ def mock_case(experiment, algorithm, column, order, input_size):
     return CaseResult(experiment, algorithm, column, order, input_size, sort_stats, timing)
 
 
+# Function to fake run_scaling until it is implemented
 def mock_run_scaling(rows, usable_indices, settings):
     return [mock_case("scaling", algorithm, settings.scaling_column, "random", size)
             for size in settings.scaling_sizes for algorithm in ALGORITHMS]
 
 
+# Function to fake run_input_order until it is implemented
 def mock_run_input_order(rows, usable_indices, settings):
-    return [mock_case("order", algorithm, settings.scaling_column, order, settings.order_sample_size)
+    return [mock_case("order", algorithm, settings.order_column, order, settings.order_sample_size)
             for order in ORDERS for algorithm in ALGORITHMS]
 
 
+# Function to fake run_repeated_values until it is implemented
 def mock_run_repeated_values(rows, usable_indices, settings):
     size = settings.order_sample_size
     cases = [mock_case("dupes", algorithm, column, "random", size)
@@ -106,6 +113,7 @@ def mock_run_repeated_values(rows, usable_indices, settings):
     return cases, duplicate_rows
 
 
+# Function to fake case_row until it is implemented
 def mock_case_row(case):
     sort_stats, timing = case.get_sort_stats(), case.get_timing()
     return {"experiment": case.get_experiment(), "algorithm": case.get_algorithm(), "column": case.get_column(),
@@ -116,51 +124,52 @@ def mock_case_row(case):
             "max_s": timing.get_max_seconds()}
 
 
+# Function to fake write_rows until it is implemented
 def mock_write_rows(rows, path, fieldnames):
     print(f"  [mock] {path}: {len(rows)} rows (not written)")
 
 
+# Function to fake write_cases until it is implemented
 def mock_write_cases(cases, path):
     print(f"  [mock] {path}: {len(cases)} rows (not written)")
 
 
+# Function to fake write_runs until it is implemented
 def mock_write_runs(cases, path):
     print(f"  [mock] {path}: {len(cases)} cases (not written)")
 
 
+# Function to fake read_cases until it is implemented
 def mock_read_cases(path):
     return []
 
 
+# Function to fake growth_factors until it is implemented
 def mock_growth_factors(cases):
     return []
 
 
+# Function to fake extrapolate_bubble until it is implemented
 def mock_extrapolate_bubble(cases, target_size, base_sizes):
-    return []
+    return {}, []
 
 
-def mock_extrapolate_bubble_growth(cases, target_size, base_sizes):
-    return []
-
-
-def mock_estimate_range(estimate_rows):
-    estimates = [row["estimate_s"] for row in estimate_rows]
-    return min(estimates), max(estimates)
-
-
+# Function to fake matplotlib_available until it is implemented
 def mock_matplotlib_available():
     return False
 
 
+# Function to fake plot_scaling until it is implemented
 def mock_plot_scaling(cases, output_folder):
     return []
 
 
+# Function to fake plot_input_order until it is implemented
 def mock_plot_input_order(cases, output_folder):
     return []
 
 
+# Function to fake plot_repeated_values until it is implemented
 def mock_plot_repeated_values(cases, output_folder):
     return []
 
@@ -183,8 +192,6 @@ write_runs = mock_write_runs                      # from sorting_analysis.experi
 read_cases = mock_read_cases                      # from sorting_analysis.experiments import read_cases
 growth_factors = mock_growth_factors              # from sorting_analysis.analysis import growth_factors
 extrapolate_bubble = mock_extrapolate_bubble      # from sorting_analysis.analysis import extrapolate_bubble
-extrapolate_bubble_growth = mock_extrapolate_bubble_growth  # from sorting_analysis.analysis import extrapolate_bubble_growth
-estimate_range = mock_estimate_range              # from sorting_analysis.analysis import estimate_range
 matplotlib_available = mock_matplotlib_available  # from sorting_analysis.plots import matplotlib_available
 plot_scaling = mock_plot_scaling                  # from sorting_analysis.plots import plot_scaling
 plot_input_order = mock_plot_input_order          # from sorting_analysis.plots import plot_input_order
@@ -196,7 +203,6 @@ PIPELINE_STEPS = {
     "run_scaling": run_scaling, "run_input_order": run_input_order, "run_repeated_values": run_repeated_values,
     "case_row": case_row, "write_rows": write_rows, "write_cases": write_cases, "write_runs": write_runs,
     "read_cases": read_cases, "growth_factors": growth_factors, "extrapolate_bubble": extrapolate_bubble,
-    "extrapolate_bubble_growth": extrapolate_bubble_growth, "estimate_range": estimate_range,
     "matplotlib_available": matplotlib_available, "plot_scaling": plot_scaling,
     "plot_input_order": plot_input_order, "plot_repeated_values": plot_repeated_values,
 }
@@ -407,12 +413,13 @@ def run_experiments(experiment_names, rows, usable_indices, settings, output_fol
     return cases
 
 
-# Function to compute growth factors and the bubble sort estimates
+# Function to compute growth factors and the bubble sort estimate
 def run_analysis(case_rows, settings, output_folder):
     """
     Description:
-    - Compute the growth factors and both bubble sort estimates, print each method's range,
-      and write growth.csv and extrapolation.csv.
+    - Compute the growth factors and the bubble sort estimate (quadratic regression on the
+      base sizes), print the estimate and the measured-versus-fitted times, and write
+      growth.csv and extrapolation.csv.
 
     Input arguments:
        case_rows (list[dict]): Case rows from case_row or read_cases.
@@ -420,21 +427,21 @@ def run_analysis(case_rows, settings, output_folder):
        output_folder (str): Folder for the CSV files.
 
     Return:
-        None (raises ValueError on a zero or negative timing)
+        None (raises ValueError on a missing base size, an invalid timing or a singular fit)
     """
     write_rows(growth_factors(case_rows), os.path.join(output_folder, "growth.csv"), GROWTH_FIELDS)
     target_size = settings.extrapolation_target_size
-    base_sizes = settings.extrapolation_base_sizes
-    all_estimates = []
-    for method, extrapolate in (("c", extrapolate_bubble), ("growth", extrapolate_bubble_growth)):
-        estimate_rows = extrapolate(case_rows, target_size, base_sizes)
-        if estimate_rows:
-            lowest, highest = estimate_range(estimate_rows)
-            print(f"  Bubble sort estimate for n = {target_size} (method {method}): {lowest:.1f} - {highest:.1f} s")
-        else:
-            print(f"  Bubble sort estimate for n = {target_size} (method {method}): no estimate available")
-        all_estimates += estimate_rows
-    write_rows(all_estimates, os.path.join(output_folder, "extrapolation.csv"), EXTRAPOLATION_FIELDS)
+    estimate_row, fitted_rows = extrapolate_bubble(case_rows, target_size, settings.extrapolation_base_sizes)
+    if estimate_row:
+        print(f"  Bubble sort estimate for n = {target_size}: {estimate_row['estimate_s']:.1f} s "
+              f"(T(n) = {estimate_row['a0']:.3g} + {estimate_row['a1']:.3g} n + {estimate_row['a2']:.3g} n^2)")
+        for fitted in fitted_rows:
+            print(f"    n = {fitted['input_size']}: measured {fitted['measured_s']:.4g} s, "
+                  f"fitted {fitted['fitted_s']:.4g} s")
+    else:
+        print(f"  Bubble sort estimate for n = {target_size}: no estimate available")
+    write_rows([estimate_row] if estimate_row else [], os.path.join(output_folder, "extrapolation.csv"),
+               EXTRAPOLATION_FIELDS)
 
 
 # Function to draw every chart
