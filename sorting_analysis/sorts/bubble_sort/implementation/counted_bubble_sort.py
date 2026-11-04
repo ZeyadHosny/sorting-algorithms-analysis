@@ -21,4 +21,20 @@ def counted_bubble_sort(values):
     Return:
         tuple: (new ascending list, SortStats), e.g. [3, 1, 2] -> ([1, 2, 3], 4 comparisons, 4 writes, 2 swaps).
     """
-    raise NotImplementedError("counted_bubble_sort: not implemented yet")
+    a = values[:]
+    comparisons = 0
+    writes = 0
+    swaps = 0
+    swapped = True
+
+    while swapped:
+        swapped = False
+        for j in range(1, len(a)):
+            comparisons += 1
+            if a[j - 1] > a[j]:
+                a[j - 1], a[j] = a[j], a[j - 1]
+                writes += 2
+                swaps += 1
+                swapped = True
+
+    return a, SortStats(comparisons, writes, swaps)
