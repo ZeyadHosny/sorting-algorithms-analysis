@@ -20,4 +20,14 @@ def bubble_sort(values):
     Return:
         list[float]: a new ascending list, e.g. [3, 1, 2] -> [1, 2, 3].
     """
-    raise NotImplementedError("bubble_sort: not implemented yet")
+    a = values[:]
+    swapped = True
+
+    while swapped:
+        swapped = False
+        for j in range(1, len(a)):
+            if a[j - 1] > a[j]:
+                a[j - 1], a[j] = a[j], a[j - 1]
+                swapped = True
+
+    return a
