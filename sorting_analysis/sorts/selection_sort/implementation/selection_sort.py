@@ -1,9 +1,6 @@
 """
 Description:
-- Selection sort that swaps only when the minimum is not already in place, without counters:
-  the version that is timed.
-- Same loops as counted_selection_sort; the counters are the only difference.
-- Spec: ARCHITECTURE.md F-SEL-1 - F-SEL-5.
+- Selection sort without operation counters.
 """
 
 
@@ -11,9 +8,9 @@ Description:
 def selection_sort(values):
     """
     Description:
-    - Copy the input by slicing (values[:]), then for each position find the index of the minimum
-      of the remaining values and swap it into place only if it is not already there (at most one swap
-      per position, as the PDF requires; the lecture version swaps on every smaller value).
+    - Sort a copy of the input (values[:]).
+    - For each position, find the minimum of the remaining values (strict <, so the first of equal
+      values is kept) and swap it in only if it is not already in place.
 
     Input arguments:
        values (list[float]): Values to sort; never modified.
@@ -21,4 +18,14 @@ def selection_sort(values):
     Return:
         list[float]: a new ascending list, e.g. [3, 1, 2] -> [1, 2, 3].
     """
-    raise NotImplementedError("selection_sort: not implemented yet")
+    sorted_values = values[:]
+    list_length = len(sorted_values)
+    for position in range(list_length - 1):
+        minimum_index = position
+        for candidate_index in range(position + 1, list_length):
+            if sorted_values[candidate_index] < sorted_values[minimum_index]:
+                minimum_index = candidate_index
+        if minimum_index != position:
+            sorted_values[position], sorted_values[minimum_index] = (sorted_values[minimum_index],
+                                                                     sorted_values[position])
+    return sorted_values

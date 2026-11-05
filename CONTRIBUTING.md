@@ -4,7 +4,7 @@
 
 - Clone the shared repository. Both members use Python 3.10 or newer.
 - The dataset `housing.csv` is included in the repository root. Never modify it.
-- Run `python -m unittest discover` from the root to confirm the setup works.
+- Run everything from the repository root (the folder with `main.py`). Run `python -m unittest discover` there to confirm the setup works.
 
 ## Workflow
 
@@ -32,7 +32,8 @@
 - Result records are plain classes with private attributes set once in the constructor and read with `get_<attribute>()`. `config.py` holds values only.
 - Every module constant has a comment. Names describe their meaning (`order_sample_size`, not `n2`).
 - Exceptions: test methods use a one-line docstring stating the expected result, and the temporary `mock_*` functions in `main.py` have only a one-line comment, because they are deleted once the real step exists.
-- Code outside an area imports from the area (`from sorting_analysis.sorts import bubble_sort`).
+- Every import uses an area's `__init__.py`: `from sorting_analysis.<area> import <name>` (e.g. `from sorting_analysis.sorts import SortStats`), also inside the area. Each area's `__init__.py` imports its `common/` first, because the features import its names back through the area.
+- Everything runs from the repository root (the folder with `main.py`): `python main.py ...`, `python -m unittest discover`, or one test file as a module, e.g. `python -m sorting_analysis.sorts.selection_sort.testing.test_selection_sort`. All paths are relative to the root.
 
 ## Project rules
 

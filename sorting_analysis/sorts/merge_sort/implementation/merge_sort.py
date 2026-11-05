@@ -1,9 +1,6 @@
 """
 Description:
-- Top-down merge sort without counters: the version that is timed. Ties take the left element first.
-- Same structure as counted_merge_sort (and as the lecture, except <= on ties, which the PDF requires);
-  the counters are the only difference.
-- Spec: ARCHITECTURE.md F-MRG-1 - F-MRG-7.
+- Top-down merge sort without operation counters.
 """
 
 
@@ -11,7 +8,7 @@ Description:
 def merge_sort(values):
     """
     Description:
-    - Sort values with top-down merge sort. Splitting by slicing creates new lists,
+    - Sort the values with top-down merge sort. Splitting by slicing creates new lists,
       so the input is never modified.
 
     Input arguments:
@@ -20,7 +17,7 @@ def merge_sort(values):
     Return:
         list[float]: a new ascending list, e.g. [2, 1] -> [1, 2].
     """
-    raise NotImplementedError("merge_sort: not implemented yet")
+    return _merge_sort_recursive(values)
 
 
 # Function to sort one sublist recursively
@@ -34,17 +31,23 @@ def _merge_sort_recursive(sublist):
        sublist (list[float]): Sublist to sort.
 
     Return:
-        list[float]: the sorted sublist.
+        list[float]: the sorted sublist, a new list.
     """
-    raise NotImplementedError("_merge_sort_recursive: not implemented yet")
+    if len(sublist) < 2:
+        return sublist[:]
+    middle = len(sublist) // 2
+    left_half = _merge_sort_recursive(sublist[:middle])
+    right_half = _merge_sort_recursive(sublist[middle:])
+    return _merge(left_half, right_half)
 
 
 # Function to merge two sorted lists
 def _merge(left_half, right_half):
     """
     Description:
-    - Append the smaller front value while both halves have values; on ties (left_half[i] <= right_half[j])
-      the left value is taken. Then append the leftover tail.
+    - Compare the first remaining value of each half and append the smaller one to the result;
+      if they are equal, append the left one first.
+    - When one half runs out, append the remaining values of the other half.
 
     Input arguments:
        left_half (list[float]): Sorted left half.
@@ -53,4 +56,19 @@ def _merge(left_half, right_half):
     Return:
         list[float]: the merged list, e.g. [1, 3], [2] -> [1, 2, 3].
     """
-    raise NotImplementedError("_merge: not implemented yet")
+    merged = []
+    left_index, right_index = 0, 0
+    while left_index < len(left_half) and right_index < len(right_half):
+        if left_half[left_index] <= right_half[right_index]:
+            merged.append(left_half[left_index])
+            left_index += 1
+        else:
+            merged.append(right_half[right_index])
+            right_index += 1
+    while left_index < len(left_half):
+        merged.append(left_half[left_index])
+        left_index += 1
+    while right_index < len(right_half):
+        merged.append(right_half[right_index])
+        right_index += 1
+    return merged

@@ -52,7 +52,7 @@ Project_2/
 └── results/             README.md · generated outputs (committed)
 ```
 
-Every package folder, `implementation/`, `testing/` and `common/` contains an `__init__.py`. `config.py` and the `common/` modules with logic (`records.py`, `filters.py`) have their own `testing/` folder; `sort_stats.py` is a plain record, covered by the sort tests. Each sort has two files with the same loops: the plain version (timed) and the counted version (operation counts), see U-11. Each feature's `__init__.py` re-exports its public names (`from .implementation.bubble_sort import bubble_sort`), and each area's `__init__.py` re-exports its features, so code outside an area imports `from sorting_analysis.sorts import bubble_sort`. Inside an area, implementation files import the specific module (`from sorting_analysis.sorts.common import SortStats`) to avoid circular imports.
+Every area and feature folder, `common/` and `testing/` contains an `__init__.py`; `implementation/` folders have none (the feature's `__init__.py` imports from them directly). `testing/` folders keep theirs because `python -m unittest discover` only searches folders that have one. `config.py` and the `common/` modules with logic (`records.py`, `filters.py`) have their own `testing/` folder; `sort_stats.py` is a plain record, covered by the sort tests. Each sort has two files with the same loops: the plain version (timed) and the counted version (operation counts), see U-11. Each feature's `__init__.py` re-exports its public names (`from .implementation.bubble_sort import bubble_sort`), and each area's `__init__.py` re-exports its features, so every import has the form `from sorting_analysis.sorts import bubble_sort`. This holds inside an area too; each area's `__init__.py` imports its `common/` first, because the features import its names back through the area. Everything runs from the repository root (the folder with `main.py`): `python main.py ...`, `python -m unittest discover`, or one test file as a module, e.g. `python -m sorting_analysis.sorts.selection_sort.testing.test_selection_sort`. All paths are relative to the root.
 
 ### 1.2 Allowed dependencies
 
@@ -230,7 +230,7 @@ def counted_merge_sort(values): ...              # [2,1] -> 1 comparison, 2 writ
 def _merge_sort_recursive(sublist): ...          # -> tuple: (sorted list, comparisons, writes) for this subtree
 def _merge(left_half, right_half): ...           # -> tuple: (merged list, comparisons, writes)
 
-# sorts/common/testing/logged_value.py (test helper)
+# sorts/common/testing/logged_value.py (test helper; re-exported: from sorting_analysis.sorts import logged_values)
 class LoggedValue: ...                           # a number that logs every <, <=, >, >= into a shared list
 def logged_values(numbers, log): ...             # -> list[LoggedValue]
 ```
