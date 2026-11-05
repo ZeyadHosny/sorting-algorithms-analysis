@@ -11,7 +11,7 @@ def bubble_sort(values):
     """
     Description:
     - Copy the input by slicing (values[:]), then bubble sort the copy as in the lecture:
-      every pass compares each neighbouring pair over the whole list and swaps it if a[j-1] > a[j];
+      every pass compares each neighbouring pair over the whole list and swaps it if sorted_values[right_index-1] > sorted_values[right_index];
       stop after a full pass with no swaps.
 
     Input arguments:
@@ -20,4 +20,17 @@ def bubble_sort(values):
     Return:
         list[float]: a new ascending list, e.g. [3, 1, 2] -> [1, 2, 3].
     """
-    raise NotImplementedError("bubble_sort: not implemented yet")
+    sorted_values = values[:]
+    swapped = True
+
+    while swapped:
+        swapped = False
+        for right_index in range(1, len(sorted_values)):
+            if sorted_values[right_index - 1] > sorted_values[right_index]:
+                sorted_values[right_index - 1], sorted_values[right_index] = (
+                    sorted_values[right_index],
+                    sorted_values[right_index - 1],
+                )
+                swapped = True
+
+    return sorted_values
