@@ -7,7 +7,7 @@ Description:
 - Spec: ARCHITECTURE.md F-EXT-1 - F-EXT-5.
 """
 
-from sorting_analysis.analysis.common import scaling_cases  # noqa: F401  (used by bubble_times)
+from sorting_analysis.analysis import scaling_cases  # noqa: F401  (used by bubble_times)
 
 
 # Name of the estimation method written to extrapolation.csv.

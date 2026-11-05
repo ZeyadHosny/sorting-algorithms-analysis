@@ -9,7 +9,7 @@ Counters are kept out of the timing, as the instructor required. Both versions c
 
 | Feature | Purpose |
 |---|---|
-| `common/` | `SortStats`, the counts returned by every counted sort; `testing/logged_value.py`, a test helper that logs comparisons |
+| `common/` | `SortStats`, the counts returned by every counted sort; `testing/logged_value.py`, a test helper that logs comparisons (`from sorting_analysis.sorts import logged_values`) |
 | `bubble_sort/` | Bubble sort with early termination, as in the lecture |
 | `selection_sort/` | Selection sort, at most one swap per position |
 | `merge_sort/` | Top-down merge sort, ties take the left value first |

@@ -2,6 +2,7 @@
 
 # Re-exports: other areas import from here, e.g. `from sorting_analysis.analysis import ...`.
 
+# common must be imported first: the features import its names back through this package.
 from .common import scaling_cases
 from .growth import GROWTH_FIELDS, growth_factors, theoretical_factor
 from .extrapolation import (EXTRAPOLATION_FIELDS, FIT_METHOD, FITTED_FIELDS, bubble_times, determinant_3x3,

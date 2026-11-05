@@ -2,7 +2,7 @@
 import unittest
 
 from sorting_analysis.sorts import counted_merge_sort, merge_sort  # noqa: F401
-from sorting_analysis.sorts.common.testing import logged_values  # noqa: F401
+from sorting_analysis.sorts import logged_values  # noqa: F401
 
 # Skip message of the drafted tests that are not written yet.
 NOT_WRITTEN = "test not implemented yet"

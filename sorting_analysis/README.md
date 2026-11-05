@@ -1,8 +1,8 @@
 # sorting_analysis
 
-The analysis package. Each area is a sub-package; each feature has `implementation/` (code) and `testing/` (unit tests).
+The analysis package. Each area is a sub-package; each feature has `implementation/` (code, no `__init__.py`) and `testing/` (unit tests; its `__init__.py` is required for test discovery). The feature's own `__init__.py` re-exports its public names.
 
-**Imports:** every area re-exports its public names, so code outside an area imports from the area directly:
+**Imports:** every area re-exports its public names, and every import, inside or outside an area, goes through the area:
 
 ```python
 from sorting_analysis.data import load_csv, sample_indices
@@ -10,7 +10,7 @@ from sorting_analysis.sorts import bubble_sort, merge_sort, SortStats
 from sorting_analysis.experiments import CaseResult, write_cases
 ```
 
-Inside an area, implementation files import the specific module (e.g. `from sorting_analysis.sorts.common import SortStats`) to avoid circular imports.
+Each area's `__init__.py` imports its `common/` first, because its features import those names back through the area (e.g. `counted_selection_sort.py` uses `from sorting_analysis.sorts import SortStats`). Run everything from the repository root.
 
 | Area | Contents |
 |---|---|

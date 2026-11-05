@@ -4,7 +4,7 @@ Description:
 - Same structure as merge_sort; it is never timed. Spec: ARCHITECTURE.md F-MRG-1 - F-MRG-7.
 """
 
-from sorting_analysis.sorts.common import SortStats  # noqa: F401  (returned by the sort)
+from sorting_analysis.sorts import SortStats  # noqa: F401  (returned by the sort)
 
 
 # Function to sort values with merge sort and count its operations
