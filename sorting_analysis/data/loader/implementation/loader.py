@@ -39,10 +39,10 @@ def parse_value(raw_value):
     - Blank, unparsable and non-finite text ('nan', 'inf') count as missing.
 
     Input arguments:
-       raw_value (str): Raw CSV value, e.g. '8.3252'.
+       raw_value (str or None): Raw CSV value, e.g. '8.3252'; None when the column is absent.
 
     Return:
-        float: the value, or None when it is missing.
+        float or None: the value, or None when it is missing.
     """
     if raw_value is None:
         return None

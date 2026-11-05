@@ -4,7 +4,7 @@ Description:
 - Counting uses a dict; nothing is sorted. Spec: ARCHITECTURE.md F-INS-1 - F-INS-3.
 """
 
-from sorting_analysis.data.loader import complete_cases, parse_value
+from sorting_analysis.data import complete_cases, parse_value
 
 
 # CSV header of inspection.csv (one row per selected column).

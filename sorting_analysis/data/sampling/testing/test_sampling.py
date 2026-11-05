@@ -2,7 +2,7 @@
 import random
 import unittest
 
-from sorting_analysis.data import sample_indices, shuffle_indices  
+from sorting_analysis.data import sample_indices, shuffle_indices
 
 
 class TestSampleIndices(unittest.TestCase):

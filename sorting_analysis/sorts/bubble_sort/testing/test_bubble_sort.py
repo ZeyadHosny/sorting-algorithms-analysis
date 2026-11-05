@@ -2,8 +2,8 @@
 import random
 import unittest
 
-from sorting_analysis.sorts import bubble_sort, counted_bubble_sort  
-from sorting_analysis.sorts.common.testing import logged_values 
+from sorting_analysis.sorts import bubble_sort, counted_bubble_sort
+from sorting_analysis.sorts import logged_values
 
 
 class TestBubbleSort(unittest.TestCase):

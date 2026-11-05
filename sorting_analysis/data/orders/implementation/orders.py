@@ -7,7 +7,7 @@ Description:
 
 import random
 
-from sorting_analysis.sorts import merge_sort  
+from sorting_analysis.sorts import merge_sort
 
 
 # Function to sort values ascending with our merge sort
