@@ -4,6 +4,8 @@ Description:
 - Spec: ARCHITECTURE.md F-SMP-1 - F-SMP-3.
 """
 
+import random
+
 
 # Function to draw a seeded sample of row indices
 def sample_indices(usable_indices, sample_size, seed):
@@ -19,7 +21,8 @@ def sample_indices(usable_indices, sample_size, seed):
     Return:
         list[int]: distinct indices (raises ValueError if sample_size > len(usable_indices)).
     """
-    raise NotImplementedError("sample_indices: not implemented yet")
+    generator = random.Random(seed)
+    return generator.sample(usable_indices, sample_size)
 
 
 # Function to put indices into a seeded random order
@@ -36,4 +39,7 @@ def shuffle_indices(row_indices, seed):
     Return:
         list[int]: a new, shuffled list.
     """
-    raise NotImplementedError("shuffle_indices: not implemented yet")
+    shuffled_indices = row_indices[:]
+    generator = random.Random(seed)
+    generator.shuffle(shuffled_indices)
+    return shuffled_indices
