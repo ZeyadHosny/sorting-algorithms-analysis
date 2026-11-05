@@ -1,6 +1,5 @@
-"""Unit tests for data.inspection (drafts: each test is skipped until it is written)."""
+"""Unit tests for data.inspection."""
 import unittest
-
 from sorting_analysis.data import INSPECTION_FIELDS
 
 from sorting_analysis.data import duplicate_stats, inspect_data  # noqa: F401
