@@ -1,4 +1,4 @@
-"""Unit tests for bubble sort, plain and counted (drafts: each test is skipped until it is written)."""
+"""Unit tests for bubble sort, plain and counted."""
 import random
 import unittest
 
