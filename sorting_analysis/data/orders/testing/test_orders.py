@@ -5,10 +5,6 @@ from unittest.mock import patch
 
 from sorting_analysis.data import ascending, descending, make_orders, nearly_sorted  # noqa: F401
 
-# Skip message of the drafted tests that are not written yet.
-NOT_WRITTEN = "test not implemented yet"
-
-
 # Unit tests supply fixed merge-sort outputs to check Orders independently.
 # The integration test below uses the real implementation when available.
 class TestOrders(unittest.TestCase):
