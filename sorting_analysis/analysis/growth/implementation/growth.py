@@ -4,7 +4,7 @@ Description:
 - Spec: ARCHITECTURE.md F-GRO-1, F-GRO-2.
 """
 
-from sorting_analysis.analysis.common import scaling_cases  # noqa: F401  (used by growth_factors)
+from sorting_analysis.analysis import scaling_cases  # noqa: F401  (used by growth_factors)
 
 
 # CSV header of growth.csv.

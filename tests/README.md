@@ -13,4 +13,4 @@ End-to-end tests of `main.py`. Unit tests live next to each feature, in its `tes
 python -m unittest discover
 ```
 
-Run from the repository root. Drafted tests are reported as skipped until they are written; a run in which every test is skipped is not a pass.
+Run from the repository root (the folder with `main.py`); a single test file runs as a module, e.g. `python -m sorting_analysis.sorts.selection_sort.testing.test_selection_sort`. Drafted tests are reported as skipped until they are written; a run in which every test is skipped is not a pass.
