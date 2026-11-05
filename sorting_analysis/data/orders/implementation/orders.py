@@ -5,7 +5,9 @@ Description:
 - Spec: ARCHITECTURE.md F-ORD-1 - F-ORD-5.
 """
 
-from sorting_analysis.sorts import merge_sort  # noqa: F401  (used by ascending)
+import random
+
+from sorting_analysis.sorts import merge_sort  
 
 
 # Function to sort values ascending with our merge sort
@@ -20,7 +22,7 @@ def ascending(values):
     Return:
         list[float]: e.g. [3, 1, 2] -> [1, 2, 3].
     """
-    raise NotImplementedError("ascending: not implemented yet")
+    return merge_sort(values)
 
 
 # Function to sort values descending
@@ -35,7 +37,9 @@ def descending(values):
     Return:
         list[float]: e.g. [1, 2, 3] -> [3, 2, 1].
     """
-    raise NotImplementedError("descending: not implemented yet")
+    ordered_values = ascending(values)
+    ordered_values.reverse()
+    return ordered_values
 
 
 # Function to build the nearly sorted input
@@ -53,7 +57,15 @@ def nearly_sorted(values, seed):
     Return:
         list[float]: a new, nearly sorted list (2000 values -> 20 swaps).
     """
-    raise NotImplementedError("nearly_sorted: not implemented yet")
+    ordered_values = ascending(values)
+    generator = random.Random(seed)
+    swap_count = len(ordered_values) // 100
+
+    for swap_number in range(swap_count):
+        first, second = generator.sample(range(len(ordered_values)), 2)
+        ordered_values[first], ordered_values[second] = ordered_values[second], ordered_values[first]
+
+    return ordered_values
 
 
 # Function to build all four input orders
@@ -69,4 +81,9 @@ def make_orders(shuffled_values, nearly_sorted_seed):
     Return:
         dict: {'random', 'sorted', 'reversed', 'nearly'} -> list[float].
     """
-    raise NotImplementedError("make_orders: not implemented yet")
+    return {
+        'random': shuffled_values[:],
+        'sorted': ascending(shuffled_values),
+        'reversed': descending(shuffled_values),
+        'nearly': nearly_sorted(shuffled_values, nearly_sorted_seed),
+    }

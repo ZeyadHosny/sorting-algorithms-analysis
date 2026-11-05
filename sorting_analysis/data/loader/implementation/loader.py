@@ -4,6 +4,9 @@ Description:
 - Standard library only. Spec: ARCHITECTURE.md F-LOAD-1 - F-LOAD-5.
 """
 
+import csv
+import math
+
 
 # Function to read every row of the CSV
 def load_csv(path):
@@ -17,7 +20,15 @@ def load_csv(path):
     Return:
         list[dict]: one dict per row, column name -> raw string (raises FileNotFoundError if the file is missing)
     """
-    raise NotImplementedError("load_csv: not implemented yet")
+    rows = []
+
+    with open(path, "r", newline="", encoding="utf-8") as file:
+        reader = csv.DictReader(file)
+
+        for row in reader:
+            rows.append(row)
+
+    return rows
 
 
 # Function to convert one raw value
@@ -33,7 +44,23 @@ def parse_value(raw_value):
     Return:
         float: the value, or None when it is missing.
     """
-    raise NotImplementedError("parse_value: not implemented yet")
+    if raw_value is None:
+        return None
+
+    text = raw_value.strip()
+
+    if text == "":
+        return None
+
+    try:
+        value = float(text)
+    except ValueError:
+        return None
+
+    if not math.isfinite(value):
+        return None
+
+    return value
 
 
 # Function to find the usable rows
@@ -49,7 +76,23 @@ def complete_cases(rows, columns):
     Return:
         list[int]: ascending row indices, e.g. [0, 1, 3].
     """
-    raise NotImplementedError("complete_cases: not implemented yet")
+    usable_indices = []
+
+    for row_index in range(len(rows)):
+        row = rows[row_index]
+        is_complete = True
+
+        for column in columns:
+            value = parse_value(row.get(column))
+
+            if value is None:
+                is_complete = False
+                break
+
+        if is_complete:
+            usable_indices.append(row_index)
+
+    return usable_indices
 
 
 # Function to extract one column
@@ -64,6 +107,20 @@ def column_values(rows, column, row_indices):
        row_indices (list[int]): Row indices, e.g. from complete_cases or the sampling functions.
 
     Return:
-        list[float]: e.g. [8.3252, 7.2574].
+        list[float]: e.g. [8.3252, 7.2574]
+        (raises ValueError if a requested value is missing or invalid).
     """
-    raise NotImplementedError("column_values: not implemented yet")
+    values = []
+
+    for row_index in row_indices:
+        value = parse_value(rows[row_index].get(column))
+
+        if value is None:
+            raise ValueError(
+                f"Missing or invalid value in column '{column}' "
+                f"at row index {row_index}."
+            )
+
+        values.append(value)
+
+    return values
