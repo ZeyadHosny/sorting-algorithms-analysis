@@ -1,4 +1,4 @@
-"""Unit tests for data.sampling (drafts: each test is skipped until it is written)."""
+"""Unit tests for data.sampling."""
 import random
 import unittest
 
