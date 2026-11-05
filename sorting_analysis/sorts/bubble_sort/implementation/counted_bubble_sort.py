@@ -4,7 +4,7 @@ Description:
 - Same loops as bubble_sort; it is never timed. Spec: ARCHITECTURE.md F-BUB-1 - F-BUB-7.
 """
 
-from sorting_analysis.sorts.common import SortStats  # noqa: F401  (returned by the sort)
+from sorting_analysis.sorts.common import SortStats  
 
 
 # Function to sort values with bubble sort and count its operations
