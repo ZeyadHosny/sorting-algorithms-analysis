@@ -1,4 +1,4 @@
-"""Unit tests for data.orders (drafts: each test is skipped until it is written)."""
+"""Unit and integration tests for data.orders."""
 import random
 import unittest
 from unittest.mock import patch
