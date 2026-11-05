@@ -2,7 +2,7 @@
 import unittest
 from sorting_analysis.data import INSPECTION_FIELDS
 
-from sorting_analysis.data import duplicate_stats, inspect_data  # noqa: F401
+from sorting_analysis.data import duplicate_stats, inspect_data  
 
 
 class TestInspectData(unittest.TestCase):
