@@ -4,9 +4,6 @@ import unittest
 
 from sorting_analysis.data import sample_indices, shuffle_indices  # noqa: F401
 
-# Skip message of the drafted tests that are not written yet.
-NOT_WRITTEN = "test not implemented yet"
-
 
 class TestSampleIndices(unittest.TestCase):
     """Seeded sampling without replacement."""
