@@ -5,9 +5,6 @@ import unittest
 from sorting_analysis.sorts import bubble_sort, counted_bubble_sort  # noqa: F401
 from sorting_analysis.sorts.common.testing import logged_values  # noqa: F401
 
-# Skip message of the drafted tests that are not written yet.
-NOT_WRITTEN = "test not implemented yet"
-
 
 class TestBubbleSort(unittest.TestCase):
     """Plain version (timed): correctness only."""
