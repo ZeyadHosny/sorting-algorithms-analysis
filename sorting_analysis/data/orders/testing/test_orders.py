@@ -3,7 +3,7 @@ import random
 import unittest
 from unittest.mock import patch
 
-from sorting_analysis.data import ascending, descending, make_orders, nearly_sorted  # noqa: F401
+from sorting_analysis.data import ascending, descending, make_orders, nearly_sorted  
 
 # Unit tests supply fixed merge-sort outputs to check Orders independently.
 # The integration test below uses the real implementation when available.
