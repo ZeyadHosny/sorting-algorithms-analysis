@@ -107,7 +107,8 @@ def column_values(rows, column, row_indices):
        row_indices (list[int]): Row indices, e.g. from complete_cases or the sampling functions.
 
     Return:
-        list[float]: e.g. [8.3252, 7.2574].
+        list[float]: e.g. [8.3252, 7.2574]
+        (raises ValueError if a requested value is missing or invalid).
     """
     values = []
 
