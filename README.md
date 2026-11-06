@@ -48,7 +48,7 @@ Exit codes: `0` success (charts may be missing) · `1` computation failure · `2
 - **Sizes:** 5, 10, 20, 250, 500, 1000, 2000, 4000 (scaling); 2000 (input order and repeated values).
 - **Seeds:** sample 42, shuffle 43, nearly sorted 44. Samples are drawn as row indices without replacement; the repeated-values experiment uses the same indices, in the same order, as the input-order experiment for all three columns. All settings are in `sorting_analysis/config.py`.
 - **Two versions per algorithm:** a plain version, which is timed, and a counted version with the same loops, which supplies the counts. Counters are never inside the timing.
-- **Timing:** `time.perf_counter()`, median of 5 timed batches. Inputs with n ≤ 20 (very small: 5, 10, 20) are sorted 1,000 times per batch; larger inputs once. Loading and input preparation are not timed. Every output is verified against `sorted()`, after the clock stops.
+- **Timing:** `time.perf_counter()`, median of 5 timed batches. Inputs with n ≤ 20 (very small: 5, 10, 20) are sorted 1,000 times per batch; larger inputs once. Loading and input preparation are not timed. Every output is verified against `sorted()` outside the clock: the counted output before the timed run, the timed outputs after the clock stops.
 - **Algorithms:** bubble sort as in the lecture (full passes, stop after a pass with no swaps); selection sort swaps at most once per position; merge sort takes the left value on ties.
 - **Comparisons:** comparisons between two data values.
 - **Writes:** a swap is 2 writes (swaps are also reported); each value placed into a merged list is 1 write, including leftover tails; copies made by slicing, including the initial `values[:]` copy, are not counted.
