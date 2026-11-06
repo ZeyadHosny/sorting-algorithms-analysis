@@ -3,8 +3,9 @@ import unittest
 from unittest.mock import patch
 
 from sorting_analysis.config import Settings
-from sorting_analysis.data import DUPES_FIELDS, column_values, sample_indices, shuffle_indices
+from sorting_analysis.data import DUPES_FIELDS, column_values, duplicate_stats, sample_indices, shuffle_indices
 from sorting_analysis.experiments import ALGORITHMS, run_input_order, run_repeated_values
+from sorting_analysis.sorts import SortStats
 from sorting_analysis.timing import TimingResult, VerificationError
 
 # Patch the Benchmark reference used by the repeated-values experiment.
@@ -129,6 +130,62 @@ class TestRunRepeatedValues(unittest.TestCase):
         self.assertEqual(self.rows, original_rows)
         self.assertEqual(self.usable_indices, original_indices)
 
+    # Check that only usable rows of the selected columns are sampled, for the inputs and the statistics
+    def test_samples_only_usable_rows_of_the_selected_columns(self):
+        """Usable rows are the even rows and selected_columns are age and house value -> 6 cases and 2 statistics
+        rows, all from that sample."""
+        rows = [{'median_income': f'{index}.5', 'housing_median_age': str(index + 1000),
+                 'median_house_value': str(2000 + index // 4)} for index in range(40)]
+        usable_indices = list(range(0, 40, 2))
+        columns = ('housing_median_age', 'median_house_value')
+        settings = Settings(order_sample_size=10, selected_columns=columns)
+        indices = shuffle_indices(sample_indices(usable_indices, 10, settings.sample_seed), settings.shuffle_seed)
+
+        with patch(BENCHMARK_PATH, side_effect=benchmark_stub) as measure:
+            cases, statistics = run_repeated_values(rows, usable_indices, settings)
+
+        self.assertEqual(len(cases), 6)
+        self.assertEqual([row['column'] for row in statistics], list(columns))
+        for case, call in zip(cases, measure.call_args_list):
+            self.assertEqual(call.args[2], column_values(rows, case.get_column(), indices))
+        for value in column_values(rows, 'housing_median_age', indices):
+            self.assertIn(int(value) - 1000, usable_indices)
+        for statistics_row in statistics:
+            expected = duplicate_stats(column_values(rows, statistics_row['column'], indices))
+            expected['column'] = statistics_row['column']
+            self.assertEqual(statistics_row, expected)
+
+    # Check that each case keeps the results of its own benchmark call
+    def test_each_case_keeps_its_own_results(self):
+        """Every benchmark call returns new TimingResult and SortStats objects -> case i holds those of call i."""
+        returned = []
+
+        # Function to return new result objects on every call
+        def distinct_results(plain_sort, counted_sort, values, settings):
+            """
+            Description:
+            - Stand-in for benchmark: return a new TimingResult and SortStats each call and record them.
+
+            Input arguments:
+               plain_sort, counted_sort, values, settings: as in benchmark.
+
+            Return:
+                tuple: (TimingResult, SortStats), different objects on every call.
+            """
+            call_number = len(returned) + 1
+            results = (TimingResult((float(call_number),), 1, float(call_number), float(call_number),
+                                    float(call_number)), SortStats(call_number, call_number, call_number))
+            returned.append(results)
+            return results
+
+        with patch(BENCHMARK_PATH, side_effect=distinct_results):
+            cases, statistics = run_repeated_values(self.rows, self.usable_indices, self.settings)
+
+        self.assertEqual(len(cases), len(returned))
+        for case, (timing, sort_stats) in zip(cases, returned):
+            self.assertIs(case.get_timing(), timing)
+            self.assertIs(case.get_sort_stats(), sort_stats)
+
     # Check that an oversized request fails before any timing call
     def test_sample_too_large_raises(self):
         """A sample larger than the usable rows raises ValueError without calling Benchmark."""
@@ -146,18 +203,15 @@ class TestRunRepeatedValues(unittest.TestCase):
 
 
 class TestRepeatedValuesIntegration(unittest.TestCase):
-    """Use real timing when its implementation is available."""
+    """The driver together with the real benchmark."""
 
     # Check the actual driver and Benchmark together using small development settings
     def test_real_benchmark(self):
-        """Real Benchmark returns nine cases and three statistics rows; skip while a dependency is unimplemented."""
+        """Real Benchmark returns nine cases and three statistics rows, each case with one timed batch."""
         rows = [{'median_income': str(index + 1), 'housing_median_age': '20',
                  'median_house_value': '500001'} for index in range(10)]
         settings = Settings(order_sample_size=10, timed_batches=1, small_input_repetitions=1)
-        try:
-            cases, statistics = run_repeated_values(rows, list(range(10)), settings)
-        except NotImplementedError:
-            self.skipTest('Waiting for the real Benchmark; independent driver tests run separately.')
+        cases, statistics = run_repeated_values(rows, list(range(10)), settings)
         self.assertEqual(len(cases), 9)
         self.assertEqual(len(statistics), 3)
         for case in cases:
