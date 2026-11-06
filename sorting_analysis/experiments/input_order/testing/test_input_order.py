@@ -5,6 +5,7 @@ from unittest.mock import patch
 from sorting_analysis.config import Settings
 from sorting_analysis.data import column_values, make_orders, sample_indices, shuffle_indices
 from sorting_analysis.experiments import ALGORITHMS, run_input_order
+from sorting_analysis.sorts import SortStats
 from sorting_analysis.timing import TimingResult, VerificationError
 
 # Patch the name used by the experiment, leaving the real timing module unchanged.
@@ -133,6 +134,55 @@ class TestRunInputOrder(unittest.TestCase):
         self.assertEqual(self.rows, original_rows)
         self.assertEqual(self.usable_indices, original_indices)
 
+    # Check that only usable rows of the configured column are sampled
+    def test_samples_only_usable_rows_of_the_order_column(self):
+        """Usable rows are the even rows and order_column is housing_median_age -> inputs come only from those."""
+        rows = [{'median_income': f'{index}.5', 'housing_median_age': str(index + 1000)} for index in range(40)]
+        usable_indices = list(range(0, 40, 2))
+        settings = Settings(order_sample_size=10, order_column='housing_median_age')
+        indices = shuffle_indices(sample_indices(usable_indices, 10, settings.sample_seed), settings.shuffle_seed)
+        expected = make_orders(column_values(rows, 'housing_median_age', indices), settings.nearly_sorted_seed)
+
+        with patch(BENCHMARK_PATH, side_effect=benchmark_stub) as measure:
+            cases = run_input_order(rows, usable_indices, settings)
+
+        for case, call in zip(cases, measure.call_args_list):
+            self.assertEqual(call.args[2], expected[case.get_order()])
+            self.assertEqual(case.get_column(), 'housing_median_age')
+            for value in call.args[2]:
+                self.assertIn(int(value) - 1000, usable_indices)
+
+    # Check that each case keeps the results of its own benchmark call
+    def test_each_case_keeps_its_own_results(self):
+        """Every benchmark call returns new TimingResult and SortStats objects -> case i holds those of call i."""
+        returned = []
+
+        # Function to return new result objects on every call
+        def distinct_results(plain_sort, counted_sort, values, settings):
+            """
+            Description:
+            - Stand-in for benchmark: return a new TimingResult and SortStats each call and record them.
+
+            Input arguments:
+               plain_sort, counted_sort, values, settings: as in benchmark.
+
+            Return:
+                tuple: (TimingResult, SortStats), different objects on every call.
+            """
+            call_number = len(returned) + 1
+            results = (TimingResult((float(call_number),), 1, float(call_number), float(call_number),
+                                    float(call_number)), SortStats(call_number, call_number, call_number))
+            returned.append(results)
+            return results
+
+        with patch(BENCHMARK_PATH, side_effect=distinct_results):
+            cases = run_input_order(self.rows, self.usable_indices, self.settings)
+
+        self.assertEqual(len(cases), len(returned))
+        for case, (timing, sort_stats) in zip(cases, returned):
+            self.assertIs(case.get_timing(), timing)
+            self.assertIs(case.get_sort_stats(), sort_stats)
+
     # Check that an oversized sample fails before timing starts
     def test_sample_too_large_raises(self):
         """A requested sample larger than the usable rows raises ValueError without calling Benchmark."""
@@ -150,17 +200,14 @@ class TestRunInputOrder(unittest.TestCase):
 
 
 class TestInputOrderIntegration(unittest.TestCase):
-    """Use real timing when its implementation is available."""
+    """The driver together with the real benchmark."""
 
     # Check the driver and actual Benchmark together using short development settings
     def test_real_benchmark(self):
-        """Real Benchmark returns twelve cases; skip only while a dependency is unimplemented."""
+        """Real Benchmark returns twelve cases, each with one timed batch."""
         rows = [{'median_income': str(index + 1)} for index in range(10)]
         settings = Settings(order_sample_size=10, timed_batches=1, small_input_repetitions=1)
-        try:
-            cases = run_input_order(rows, list(range(10)), settings)
-        except NotImplementedError:
-            self.skipTest('Waiting for the real Benchmark; independent driver tests run separately.')
+        cases = run_input_order(rows, list(range(10)), settings)
         self.assertEqual(len(cases), 12)
         for case in cases:
             self.assertEqual(len(case.get_timing().get_batch_seconds()), 1)
