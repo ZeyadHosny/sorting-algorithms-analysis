@@ -4,6 +4,8 @@ Description:
 - Spec: ARCHITECTURE.md F-REC-1 - F-REC-5.
 """
 
+import csv
+
 from sorting_analysis.sorts import (bubble_sort, counted_bubble_sort, counted_merge_sort, counted_selection_sort,
                                     merge_sort, selection_sort)
 
@@ -180,7 +182,22 @@ def case_row(case):
     Return:
         dict: the CASE_FIELDS keys; swaps stays None for merge sort.
     """
-    raise NotImplementedError("case_row: not implemented yet")
+    sort_stats = case.get_sort_stats()
+    timing = case.get_timing()
+    return {
+        "experiment": case.get_experiment(),
+        "algorithm": case.get_algorithm(),
+        "column": case.get_column(),
+        "order": case.get_order(),
+        "input_size": case.get_input_size(),
+        "comparisons": sort_stats.get_comparisons(),
+        "writes": sort_stats.get_writes(),
+        "swaps": sort_stats.get_swaps(),
+        "sorts_per_batch": timing.get_sorts_per_batch(),
+        "median_s": timing.get_median_seconds(),
+        "min_s": timing.get_min_seconds(),
+        "max_s": timing.get_max_seconds(),
+    }
 
 
 # Function to write cases.csv
@@ -196,7 +213,13 @@ def write_cases(cases, path):
     Return:
         None
     """
-    raise NotImplementedError("write_cases: not implemented yet")
+    rows = []
+    for case in cases:
+        row = case_row(case)
+        if row["swaps"] is None:
+            row["swaps"] = NOT_APPLICABLE
+        rows.append(row)
+    write_rows(rows, path, CASE_FIELDS)
 
 
 # Function to write timing_runs.csv
@@ -212,7 +235,20 @@ def write_runs(cases, path):
     Return:
         None
     """
-    raise NotImplementedError("write_runs: not implemented yet")
+    rows = []
+    for case in cases:
+        # Batch numbers start at 1. Each time is already seconds per sort.
+        for batch_number, seconds_per_sort in enumerate(case.get_timing().get_batch_seconds(), start=1):
+            rows.append({
+                "experiment": case.get_experiment(),
+                "algorithm": case.get_algorithm(),
+                "column": case.get_column(),
+                "order": case.get_order(),
+                "input_size": case.get_input_size(),
+                "batch": batch_number,
+                "seconds_per_sort": seconds_per_sort,
+            })
+    write_rows(rows, path, RUN_FIELDS)
 
 
 # Function to write any list of rows to a CSV
@@ -229,7 +265,10 @@ def write_rows(rows, path, fieldnames):
     Return:
         None
     """
-    raise NotImplementedError("write_rows: not implemented yet")
+    with open(path, "w", newline="", encoding="utf-8") as csv_file:
+        writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
 
 
 # Function to read cases.csv back with typed values
@@ -245,4 +284,23 @@ def read_cases(path):
     Return:
         list[dict]: one row per case (raises FileNotFoundError if missing, ValueError on a malformed number).
     """
-    raise NotImplementedError("read_cases: not implemented yet")
+    rows = []
+    with open(path, newline="", encoding="utf-8") as csv_file:
+        reader = csv.DictReader(csv_file)
+        for row in reader:
+            for field in ("input_size", "comparisons", "writes", "sorts_per_batch"):
+                if row[field] is None:
+                    raise ValueError("Missing numeric value in " + field)
+                row[field] = int(row[field])
+            for field in ("median_s", "min_s", "max_s"):
+                if row[field] is None:
+                    raise ValueError("Missing numeric value in " + field)
+                row[field] = float(row[field])
+            if row["swaps"] == NOT_APPLICABLE:
+                row["swaps"] = None
+            else:
+                if row["swaps"] is None:
+                    raise ValueError("Missing numeric value in swaps")
+                row["swaps"] = int(row["swaps"])
+            rows.append(row)
+    return rows
