@@ -13,7 +13,7 @@ Measures the runtime of one sort on one input, collects its operation counts, an
 | n ≤ 20 (very small: 5, 10, 20) | 1,000 | 5 | median of (batch time ÷ 1,000) |
 | n > 20 | 1 | 5 | median of the 5 times |
 
-Only the **plain** sort (no counters) is timed, as the instructor required. The timed region (`time.perf_counter()`) contains only its calls and storing their outputs. The **counted** sort runs once per batch outside the clock and supplies the counts. Verification against `sorted()` runs after the clock stops. Garbage collection is disabled while timing and restored afterwards.
+Only the **plain** sort (no counters) is timed, as the instructor required. The timed region (`time.perf_counter()`) contains only its calls and storing their outputs. The **counted** sort runs once per batch outside the clock and supplies the counts. Every output is verified against `sorted()` outside the clock: the counted output before the timed run, the timed outputs after the clock stops. Garbage collection is disabled while timing and restored afterwards.
 
 ## Interfaces
 
