@@ -154,12 +154,8 @@ class TestOrdersIntegration(unittest.TestCase):
 
     # Check the completed Orders and Merge Sort modules together
     def test_orders_with_real_merge_sort(self):
-        """Real merge sort produces correct orders; skip only while it is unimplemented."""
-        try:
-            probe = ascending([3, 1, 2])
-        except NotImplementedError:
-            self.skipTest('Waiting for the real merge_sort implementation; unit tests run separately.')
-        self.assertEqual(probe, [1, 2, 3])
+        """Real merge sort produces correct orders: [3, 1, 2] -> [1, 2, 3], and every order holds the same values."""
+        self.assertEqual(ascending([3, 1, 2]), [1, 2, 3])
 
         for values in ([], [2], [3, 1, 3, 2, 1], list(range(200))[::-1]):
             with self.subTest(size=len(values)):
