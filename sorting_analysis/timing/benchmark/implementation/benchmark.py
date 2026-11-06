@@ -2,14 +2,17 @@
 Description:
 - Repeated, verified timing of one sort on one input.
 - Only the plain sort (no counters) is timed. The timed region holds only its calls and storing
-  their outputs; verification against sorted() runs after the clock stops.
-- The counted sort supplies the operation counts; it runs outside the clock.
+  their outputs; the timed outputs are verified against sorted() after the clock stops.
+- The counted sort supplies the operation counts; it runs and is verified outside the clock.
 - Garbage collection is off while timing.
 - Spec: ARCHITECTURE.md F-BEN-1 - F-BEN-10.
 """
 
+import gc
+import time
+
 from sorting_analysis.config import DEFAULT_SETTINGS
-from sorting_analysis.sorts import merge_sort  # noqa: F401  (used by median_of)
+from sorting_analysis.sorts import merge_sort
 
 
 class TimingResult:
@@ -146,7 +149,9 @@ def repetitions_for(input_size, settings=DEFAULT_SETTINGS):
     Return:
         int: e.g. 1000 for 5 values, 1 for 250 values.
     """
-    raise NotImplementedError("repetitions_for: not implemented yet")
+    if input_size <= settings.small_input_limit:
+        return settings.small_input_repetitions
+    return settings.normal_input_repetitions
 
 
 # Function to time one sort on one input and collect its counts
@@ -169,9 +174,51 @@ def benchmark(sort_function, counted_sort_function, values, settings=DEFAULT_SET
        settings (Settings): Run settings (timed_batches and the repetition values).
 
     Return:
-        tuple: (TimingResult, SortStats) (raises VerificationError if any check fails)
+        tuple: (TimingResult, SortStats) (raises VerificationError if any check fails,
+        and ValueError if the number of batches or sorts per batch is below 1)
     """
-    raise NotImplementedError("benchmark: not implemented yet")
+    sorts_per_batch = repetitions_for(len(values), settings)
+    if settings.timed_batches < 1 or sorts_per_batch < 1:
+        raise ValueError(f"Timed batches and sorts per batch must be at least 1, got "
+                         f"{settings.timed_batches} and {sorts_per_batch}.")
+    original_values = values[:]
+    expected_output = sorted(original_values)
+    batch_seconds = []
+    first_stats = None
+
+    for i in range(settings.timed_batches):
+        # 1. Counted run, outside the clock.
+        counted_output, sort_stats = counted_sort_function(values)
+        _check_output(counted_output, expected_output, values, original_values)
+        if first_stats is None:
+            first_stats = sort_stats
+        elif _counts_of(sort_stats) != _counts_of(first_stats):
+            raise VerificationError(f"Counts changed between batches: {_counts_of(first_stats)} "
+                                    f"then {_counts_of(sort_stats)}.")
+
+        # 2. Timed run: only the plain sort and storing its outputs.
+        outputs = [None] * sorts_per_batch
+        gc_was_enabled = gc.isenabled()
+        # Turn off garbage collection while timing, so its unpredictable pauses do not add to the measured time.
+        gc.disable()
+        try:
+            start = time.perf_counter()
+            for repetition in range(sorts_per_batch):
+                outputs[repetition] = sort_function(values)
+            elapsed = time.perf_counter() - start
+        finally:
+            if gc_was_enabled:
+                gc.enable()
+
+        # 3. Verification, after the clock stops.
+        for output in outputs:
+            _check_output(output, expected_output, values, original_values)
+        batch_seconds.append(elapsed / sorts_per_batch)
+
+    batch_seconds = tuple(batch_seconds)
+    timing_result = TimingResult(batch_seconds, sorts_per_batch, median_of(list(batch_seconds)),
+                                 min(batch_seconds), max(batch_seconds))
+    return timing_result, first_stats
 
 
 # Function to compute a median without sorted()
@@ -187,4 +234,44 @@ def median_of(values):
     Return:
         float: e.g. [3, 1, 2] -> 2.
     """
-    raise NotImplementedError("median_of: not implemented yet")
+    ordered_values = merge_sort(values)
+    middle = len(ordered_values) // 2
+    if len(ordered_values) % 2 == 1:
+        return ordered_values[middle]
+    return (ordered_values[middle - 1] + ordered_values[middle]) / 2
+
+
+# Function to check one sort output and the input after the sort
+def _check_output(output, expected_output, values, original_values):
+    """
+    Description:
+    - Check that the output equals sorted() of the input and that the input is unchanged.
+
+    Input arguments:
+       output (list[float]): Output of one sort.
+       expected_output (list[float]): sorted() of the original input.
+       values (list[float]): The input after the sort.
+       original_values (list[float]): Copy of the input taken before any sort.
+
+    Return:
+        None (raises VerificationError if a check fails)
+    """
+    if output != expected_output:
+        raise VerificationError("Sort output differs from sorted().")
+    if values != original_values:
+        raise VerificationError("The input list was modified by the sort.")
+
+
+# Function to read the three counts of a SortStats
+def _counts_of(sort_stats):
+    """
+    Description:
+    - Return the counts of one counted run, to compare runs.
+
+    Input arguments:
+       sort_stats (SortStats): Counts of one counted run.
+
+    Return:
+        tuple: (comparisons, writes, swaps), e.g. (4, 4, 2).
+    """
+    return sort_stats.get_comparisons(), sort_stats.get_writes(), sort_stats.get_swaps()
