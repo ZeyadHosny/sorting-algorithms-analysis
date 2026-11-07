@@ -69,7 +69,7 @@ Every area and feature folder, `common/` and `testing/` contains an `__init__.py
 | `experiments/<experiment>` | `config`, `data`, `sorts`, `timing`, `experiments/common` |
 | `analysis/common` | `experiments/common` |
 | `analysis/<feature>` | `config`, `experiments/common` (CSV read/write), `analysis/common` |
-| `plots/charts` | `experiments/common`, matplotlib (optional) |
+| `plots/charts` | `config`, `experiments/common`, matplotlib (optional) |
 | `main.py` | everything |
 
 Rules: `sorts` never imports data preparation. `common/` holds what an area's features share (record types, CSV schema I/O, filters) and never imports the features that use it. Only `plots/` may import matplotlib. The graph has no cycles.
@@ -324,9 +324,13 @@ def extrapolate_bubble(cases, target_size, base_sizes): ...
 ```python
 # plots/charts/implementation/charts.py
 def matplotlib_available(): ...                   # -> bool
-def plot_scaling(cases, output_folder): ...       # -> list[str]: written file paths
+def plot_scaling(cases, output_folder): ...       # -> list[str]: scaling summary and tiny-runtime detail paths
 def plot_input_order(cases, output_folder): ...
 def plot_repeated_values(cases, output_folder): ...
+def plot_growth(growth_rows, output_folder): ...  # -> list[str]: observed and theoretical growth figure
+def plot_bubble_extrapolation(cases, estimate_row, fitted_rows, output_folder): ...
+    # -> list[str]: measured points, fitted quadratic and explicitly labelled extrapolation
+    # Inputs are existing analysis outputs; charts do not rerun experiments or fit a new model.
 ```
 
 ### 2.8 `main.py` and `tests/`
@@ -659,6 +663,19 @@ To be stated in the report's limitations section (R-46).
 | F-PLT-2 | Charts for input order and repeated values | R-44, R-52 | `order_comparisons.png` |
 | F-PLT-3 | The only module importing matplotlib; its tests skip if it isn't installed | R-02, R-05 | — |
 | F-PLT-4 | If matplotlib is missing, `all` prints "INCOMPLETE: plots missing" (the run still succeeds) | R-44, D-09 | — |
+
+Chart design extension agreed with Bahareh: three summary PNGs, each with runtime, comparisons
+and writes panels; a tiny-input runtime PNG; a growth-factor PNG; and a bubble extrapolation PNG.
+These six files are team design choices, not six separately prescribed PDF requirements.
+`plot_scaling` writes the first and the tiny-input detail. `plot_growth` receives typed `growth.csv`
+rows; `plot_bubble_extrapolation` receives cases and the two outputs of `extrapolate_bubble`.
+No existing public signature changes. New names are re-exported through `sorting_analysis.plots`.
+Times remain seconds per sort except the labelled tiny-input detail, which displays microseconds.
+Runtime whiskers are observed minimum-to-maximum ranges, never confidence intervals.
+Missing cases are gaps and reported in captions; true zero writes remain on a linear axis.
+Charts validate duplicate cases and consistent experiment context instead of mixing different runs.
+The two new plotting functions need explicit calls during the later `main.py` integration;
+implementing them alone does not replace the existing mock pipeline or produce official results.
 
 ### 4.18 `main.py`
 
