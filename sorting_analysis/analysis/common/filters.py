@@ -17,4 +17,8 @@ def scaling_cases(cases):
     Return:
         list[dict]: the rows with experiment == 'scaling'.
     """
-    raise NotImplementedError("scaling_cases: not implemented yet")
+    scaling_rows = []
+    for row in cases:
+        if row["experiment"] == "scaling":
+            scaling_rows.append(row)
+    return scaling_rows
