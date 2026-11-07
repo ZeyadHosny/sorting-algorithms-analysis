@@ -127,6 +127,20 @@ class TestRecords(unittest.TestCase):
         with self.assertRaises(ValueError):
             read_cases(self.case_path)
 
+    def test_wrong_header_raises(self):
+        """A missing column, a wrong header-only file or an empty file raises ValueError."""
+        missing_column = [field for field in CASE_FIELDS if field != "input_size"]
+        for header, data_rows in ((missing_column, [[self.expected_row[field] for field in missing_column]]),
+                                  (["foo", "bar"], []), (None, [])):
+            with self.subTest(header=header):
+                with open(self.case_path, "w", newline="", encoding="utf-8") as csv_file:
+                    writer = csv.writer(csv_file)
+                    if header is not None:
+                        writer.writerow(header)
+                    writer.writerows(data_rows)
+                with self.assertRaises(ValueError):
+                    read_cases(self.case_path)
+
     def test_missing_file_raises(self):
         """Reading an absent cases.csv raises FileNotFoundError."""
         with self.assertRaises(FileNotFoundError):

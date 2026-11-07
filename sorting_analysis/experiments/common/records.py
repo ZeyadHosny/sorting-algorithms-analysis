@@ -282,11 +282,15 @@ def read_cases(path):
        path (str): CSV written by write_cases.
 
     Return:
-        list[dict]: one row per case (raises FileNotFoundError if missing, ValueError on a malformed number).
+        list[dict]: one row per case (raises FileNotFoundError if missing, ValueError on a header other than
+                    CASE_FIELDS or a malformed number).
     """
     rows = []
     with open(path, newline="", encoding="utf-8") as csv_file:
         reader = csv.DictReader(csv_file)
+        # A missing, extra or renamed column is a malformed file, not a KeyError or an empty result.
+        if reader.fieldnames is None or tuple(reader.fieldnames) != CASE_FIELDS:
+            raise ValueError("cases.csv header must be " + ",".join(CASE_FIELDS))
         for row in reader:
             for field in ("input_size", "comparisons", "writes", "sorts_per_batch"):
                 if row[field] is None:
