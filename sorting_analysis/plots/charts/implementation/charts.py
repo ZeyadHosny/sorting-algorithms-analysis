@@ -293,7 +293,8 @@ def _summary_chart(rows, experiment, output_folder):
     lookup = {(row["algorithm"], row[category_field]): row for row in rows}
     missing = len(ALGORITHM_STYLES) * len(categories) - len(lookup)
     figure, axes = _new_figure(3, 8.0)
-    figure.subplots_adjust(left=0.17, right=0.97, bottom=0.11, top=0.83, hspace=0.80)
+    figure.subplots_adjust(left=0.17, right=0.97, bottom=0.15 if experiment == "scaling" else 0.11, top=0.83,
+                           hspace=0.80)
     figure.suptitle(title, y=0.98, fontsize=14, fontweight="bold")
     context = "Random order" if experiment == "scaling" else "n = " + format(rows[0]["input_size"], ",")
     figure.text(0.5, 0.935, context, ha="center", fontsize=11, color="#465365")
@@ -387,7 +388,7 @@ def _tiny_chart(rows, output_folder):
     axis.set_ylabel("Median runtime (µs per sort)", fontsize=11)
     axis.legend(loc="lower center", bbox_to_anchor=(0.5, 1.02), ncol=3, frameon=False, fontsize=10)
     figure.text(0.16, 0.06, "Whiskers: observed min–max range. 1 µs = 0.000001 s.\n"
-                "n = 20 is context; the decision-guide category n < 20 excludes it.",
+                "Very small inputs: n ≤ " + str(DEFAULT_SMALL_INPUT_LIMIT) + ", as confirmed by the instructor.",
                 fontsize=9, color="#465365")
     return _save_figure(figure, output_folder, "scaling_tiny_runtime.png")
 

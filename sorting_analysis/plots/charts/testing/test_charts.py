@@ -249,17 +249,83 @@ class TestCharts(unittest.TestCase):
         self.assertIn("Missing cases: 1", captured["text"])
 
     def test_invalid_duplicate_and_mixed_case_contexts_raise(self):
-        """Duplicate cases, inconsistent n and invalid timing ranges raise ValueError."""
+        """Duplicate cases, inconsistent n and invalid timing ranges raise their own ValueError."""
         original = [row for row in self.cases if row["experiment"] == "order"]
         duplicate = original + [original[0].copy()]
         mixed = copy.deepcopy(original)
         mixed[0]["input_size"] = 1000
         invalid = copy.deepcopy(original)
         invalid[0]["min_s"] = invalid[0]["median_s"] * 2
-        for rows in (duplicate, mixed, invalid):
-            with self.subTest(rows=rows):
-                with self.assertRaises(ValueError):
+        for rows, message in ((duplicate, "Duplicate chart case"), (mixed, "consistent"),
+                              (invalid, "min_s <= median_s <= max_s")):
+            with self.subTest(message=message):
+                with self.assertRaisesRegex(ValueError, message):
                     plot_input_order(rows, self.folder)
+
+    def test_scaling_rows_must_use_random_order(self):
+        """Scaling rows that all use another order raise ValueError; mixed orders raise the context error."""
+        scaling = [row for row in self.cases if row["experiment"] == "scaling"]
+        sorted_rows = copy.deepcopy(scaling)
+        for row in sorted_rows:
+            row["order"] = "sorted"
+        mixed = copy.deepcopy(scaling)
+        mixed[0]["order"] = "sorted"
+        for rows, message in ((sorted_rows, "random-order"), (mixed, "consistent")):
+            with self.subTest(message=message):
+                with self.assertRaisesRegex(ValueError, message):
+                    plot_scaling(rows, self.folder)
+
+    def test_writes_axis_stays_linear_with_positive_writes(self):
+        """Scaling writes are all positive and vary widely, yet the writes panel stays linear from zero."""
+        captured = {}
+
+        # Function to record the axis scales of the scaling summary
+        def inspect_figure(figure, path, **keywords):
+            """
+            Description:
+            - Capture the y-axis scale and lower limit of each summary panel.
+
+            Input arguments:
+               figure (Figure): Figure being saved.
+               path (str): Output path.
+               keywords (dict): Export settings.
+
+            Return:
+                None
+            """
+            captured.setdefault(os.path.basename(path), [(axis.get_yscale(), axis.get_ylim()[0])
+                                                         for axis in figure.axes])
+
+        with patch("matplotlib.figure.Figure.savefig", autospec=True, side_effect=inspect_figure):
+            plot_scaling(self.cases, self.folder)
+        scales = captured["scaling_summary.png"]
+        self.assertEqual([scale for scale, bottom in scales], ["log", "log", "linear"])
+        self.assertEqual(scales[2][1], 0)
+
+    def test_tiny_caption_includes_the_limit(self):
+        """The tiny-input caption counts n = 20 as very small (instructor clarification U-14)."""
+        captured = {}
+
+        # Function to record the caption text of each saved figure
+        def inspect_figure(figure, path, **keywords):
+            """
+            Description:
+            - Capture all figure-level text of the saved figure.
+
+            Input arguments:
+               figure (Figure): Figure being saved.
+               path (str): Output path.
+               keywords (dict): Export settings.
+
+            Return:
+                None
+            """
+            captured[os.path.basename(path)] = " ".join(text.get_text() for text in figure.texts)
+
+        with patch("matplotlib.figure.Figure.savefig", autospec=True, side_effect=inspect_figure):
+            plot_scaling(self.cases, self.folder)
+        self.assertIn("n ≤ 20", captured["scaling_tiny_runtime.png"])
+        self.assertNotIn("excludes", captured["scaling_tiny_runtime.png"])
 
     def test_plots_do_not_modify_input_rows(self):
         """All plotting functions preserve their case, growth and model input records."""
