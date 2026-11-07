@@ -518,7 +518,7 @@ def plot_bubble_extrapolation(cases, estimate_row, fitted_rows, output_folder):
         raise ValueError("Quadratic curve contains non-finite values")
     color = ALGORITHM_STYLES["bubble"][1]
     figure, axes = _new_figure(2, 7.3)
-    figure.subplots_adjust(left=0.16, right=0.97, bottom=0.14, top=0.87, hspace=0.65)
+    figure.subplots_adjust(left=0.16, right=0.97, top=0.87, hspace=0.65)
     figure.suptitle("Bubble Sort — measured fit and extrapolation", y=0.98, fontsize=14, fontweight="bold")
     for axis in axes:
         axis.plot(sizes, measured_times, color=color, marker="o", linestyle="None", label="Measured median")
@@ -550,5 +550,7 @@ def plot_bubble_extrapolation(cases, estimate_row, fitted_rows, output_folder):
     if min(fitted_y + extrapolated_y + [prediction]) <= 0:
         note += "\nWarning: the model includes non-positive runtimes, which are not physically meaningful."
     note = "\n".join(textwrap.fill(line, width=84) for line in note.splitlines())
+    # Each caption line beyond the usual three takes about 0.021 of the figure height.
+    figure.subplots_adjust(bottom=0.16 + 0.021 * max(0, note.count("\n") - 2))
     figure.text(0.16, 0.025, note, fontsize=9, color="#465365", va="bottom")
     return [_save_figure(figure, output_folder, "bubble_extrapolation.png")]

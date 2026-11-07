@@ -414,6 +414,43 @@ class TestCharts(unittest.TestCase):
         self.assertEqual(captured["prediction_size"], [20640.0])
         self.assertEqual(captured["prediction_label"], "Predicted, not measured")
 
+    def test_extrapolation_footer_does_not_overlap_the_axis(self):
+        """With and without the non-positive warning, the footer sits below the lower panel's labels."""
+        negative_estimate = dict(self.estimate, a0=-0.05)
+        negative_estimate["estimate_s"] = -0.05 + 0.000002 * 20640 + 0.0000001 * 20640 ** 2
+        negative_fitted = [dict(row, fitted_s=-0.05 + 0.000002 * row["input_size"]
+                                + 0.0000001 * row["input_size"] ** 2) for row in self.fitted]
+        captured = []
+
+        # Function to measure the footer and the lower panel after drawing
+        def inspect_figure(figure, path, **keywords):
+            """
+            Description:
+            - Draw the figure, then record the footer text, its top edge and the lower panel's bottom edge.
+
+            Input arguments:
+               figure (Figure): Extrapolation figure.
+               path (str): Export path.
+               keywords (dict): Export settings.
+
+            Return:
+                None
+            """
+            figure.canvas.draw()
+            renderer = figure.canvas.get_renderer()
+            footer = figure.texts[-1]
+            captured.append((footer.get_text(), footer.get_window_extent(renderer).y1,
+                             figure.axes[1].get_tightbbox(renderer).y0))
+
+        with patch("matplotlib.figure.Figure.savefig", autospec=True, side_effect=inspect_figure):
+            plot_bubble_extrapolation(self.bubble_cases, self.estimate, self.fitted, self.folder)
+            plot_bubble_extrapolation(self.bubble_cases, negative_estimate, negative_fitted, self.folder)
+        self.assertNotIn("Warning", captured[0][0])
+        self.assertIn("Warning", captured[1][0])
+        for footer_text, footer_top, axis_bottom in captured:
+            with self.subTest(warning="Warning" in footer_text):
+                self.assertLess(footer_top, axis_bottom)
+
 
 if __name__ == "__main__":
     unittest.main()
