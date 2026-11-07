@@ -1,9 +1,9 @@
 """
 Description:
 - Command-line entry point of the sorting analysis:
-      python main.py {check,scaling,order,dupes,analyze,plot,all} [--csv PATH] [--out FOLDER]
-- `all` is the official run and writes to results/; the other commands are for development and
-  write to results/dev/ unless --out is given.
+      python main.py [{check,scaling,order,dupes,analyze,plot,all}] [--csv PATH] [--out FOLDER]
+- `all` is the official run and the default when no command is given; it writes to results/.
+  The other commands are for development and write to results/dev/ unless --out is given.
 - Exit codes: 0 success (plots may be missing) | 1 computation failure (wrong sort output,
   invalid timing, unexpected error) | 2 input or usage error (dataset, columns, sample size,
   cases.csv, matplotlib for `plot`) | 130 interrupted.
@@ -25,7 +25,7 @@ from sorting_analysis.data import DUPES_FIELDS, INSPECTION_FIELDS, complete_case
 from sorting_analysis.experiments import (case_row, read_cases, run_input_order, run_repeated_values, run_scaling,
                                           write_cases, write_rows, write_runs)
 from sorting_analysis.plots import (matplotlib_available, plot_bubble_extrapolation, plot_growth, plot_input_order,
-                                    plot_repeated_values, plot_scaling)
+                                    plot_repeated_values, plot_result_tables, plot_scaling)
 from sorting_analysis.timing import VerificationError
 
 # Exit codes returned by main.
@@ -40,7 +40,8 @@ CSV_OUTPUTS = ("inspection.csv", "cases.csv", "timing_runs.csv", "dupes_stats.cs
                "extrapolation.csv")
 # PNG files the charts can write; an official run deletes old copies of these only.
 PLOT_OUTPUTS = ("scaling_summary.png", "scaling_tiny_runtime.png", "input_order_summary.png",
-                "repeated_values_summary.png", "growth_factors.png", "bubble_extrapolation.png")
+                "repeated_values_summary.png", "growth_factors.png", "bubble_extrapolation.png",
+                "scaling_table.png", "input_order_table.png", "repeated_values_table.png")
 # Name of the success marker of an official run.
 METADATA_NAME = "metadata.json"
 
@@ -57,16 +58,17 @@ class InputError(Exception):
 def parse_arguments(argument_list):
     """
     Description:
-    - Read the command and the --csv and --out options.
+    - Read the command and the --csv and --out options; with no command, run `all`.
 
     Input arguments:
        argument_list (list[str]): Arguments without the program name; None reads sys.argv.
 
     Return:
-        argparse.Namespace: command, csv, out.
+        argparse.Namespace: command ('all' if none was given), csv, out.
     """
     parser = argparse.ArgumentParser(description="Sorting algorithm analysis on housing.csv.")
-    parser.add_argument("command", choices=COMMANDS)
+    parser.add_argument("command", nargs="?", default="all", choices=COMMANDS,
+                        help="command to run (default: all)")
     parser.add_argument("--csv", help="dataset path (default: housing.csv)")
     parser.add_argument("--out", help="output folder (default: results/ for `all`, results/dev/ otherwise)")
     return parser.parse_args(argument_list)
@@ -251,7 +253,8 @@ def write_analysis(growth_rows, estimate_row, fitted_rows, output_folder):
 def run_plots(case_rows, growth_rows, estimate_row, fitted_rows, output_folder):
     """
     Description:
-    - Draw the scaling, input-order, repeated-values, growth and bubble extrapolation charts.
+    - Draw the scaling, input-order, repeated-values, growth and bubble extrapolation charts, and one
+      result table per experiment.
 
     Input arguments:
        case_rows (list[dict]): Case rows from case_row or read_cases.
@@ -268,6 +271,7 @@ def run_plots(case_rows, growth_rows, estimate_row, fitted_rows, output_folder):
         plot_files += plot(case_rows, output_folder)
     plot_files += plot_growth(growth_rows, output_folder)
     plot_files += plot_bubble_extrapolation(case_rows, estimate_row, fitted_rows, output_folder)
+    plot_files += plot_result_tables(case_rows, output_folder)
     return plot_files
 
 

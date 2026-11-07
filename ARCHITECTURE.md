@@ -672,7 +672,7 @@ rows; `plot_bubble_extrapolation` receives cases and the two outputs of `extrapo
 No existing public signature changes. New names are re-exported through `sorting_analysis.plots`.
 Times remain seconds per sort except the labelled tiny-input detail, which displays microseconds.
 Runtime whiskers are observed minimum-to-maximum ranges, never confidence intervals.
-Missing cases are gaps and reported in captions; true zero writes remain on a linear axis.
+Missing cases are gaps and reported in captions. Summary runtimes use a log axis; writes use a symmetric log axis (linear from 0 to 1), so true zero writes stay exactly zero beside counts in the millions.
 Charts validate duplicate cases and consistent experiment context instead of mixing different runs.
 The two new plotting functions need explicit calls during the later `main.py` integration;
 implementing them alone does not replace the existing mock pipeline or produce official results.

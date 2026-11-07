@@ -231,6 +231,14 @@ class TestEndToEnd(unittest.TestCase):
             self.assertTrue(os.path.isfile(path), path)
         self.assertFalse(os.path.exists(os.path.join(self.out, main.METADATA_NAME + ".tmp")))
 
+    def test_no_command_runs_all(self):
+        """No command -> parsed as `all`, written to results/ by default, and a full run with metadata.json."""
+        self.assertEqual(main.parse_arguments([]).command, "all")
+        self.assertEqual(main.choose_output_folder(main.parse_arguments([]).command, None, SMALL), "results")
+        self.assertEqual(run_quietly(["--csv", self.csv, "--out", self.out]), main.EXIT_OK)
+        for name in main.CSV_OUTPUTS + (main.METADATA_NAME,):
+            self.assertTrue(os.path.isfile(os.path.join(self.out, name)), name)
+
     def test_pngs_only_when_matplotlib_available(self):
         """PNG files exist if matplotlib_available(); plots_status is complete or missing accordingly."""
         self.assertEqual(run_quietly(["all", "--csv", self.csv, "--out", self.out]), main.EXIT_OK)
