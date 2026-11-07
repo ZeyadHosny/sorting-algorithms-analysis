@@ -2,28 +2,31 @@
 Description:
 - Command-line entry point of the sorting analysis:
       python main.py {check,scaling,order,dupes,analyze,plot,all} [--csv PATH] [--out FOLDER]
-- Steps that are not implemented yet use the mock functions below. To switch a step to the
-  real code, replace its line under "Pipeline steps" with the import in its comment, then
-  delete its mock.
-- While any mock is in use, outputs go to results/dev/, writing into results/ (or any folder
-  holding a metadata.json) is refused, and metadata.json is not written.
+- `all` is the official run and writes to results/; the other commands are for development and
+  write to results/dev/ unless --out is given.
 - Exit codes: 0 success (plots may be missing) | 1 computation failure (wrong sort output,
-  invalid timing, step not implemented, unexpected error) | 2 input or usage error (dataset,
-  columns, sample size, cases.csv, matplotlib for `plot`) | 130 interrupted.
+  invalid timing, unexpected error) | 2 input or usage error (dataset, columns, sample size,
+  cases.csv, matplotlib for `plot`) | 130 interrupted.
 - Spec: ARCHITECTURE.md F-MAIN-1 - F-MAIN-6.
 """
 
 import argparse
+import datetime
+import hashlib
+import json
 import os
+import platform
 import sys
 import traceback
 
-from sorting_analysis.analysis import EXTRAPOLATION_FIELDS, GROWTH_FIELDS
+from sorting_analysis.analysis import EXTRAPOLATION_FIELDS, GROWTH_FIELDS, extrapolate_bubble, growth_factors
 from sorting_analysis.config import DEFAULT_SETTINGS
-from sorting_analysis.data import DUPES_FIELDS, INSPECTION_FIELDS
-from sorting_analysis.experiments import ALGORITHMS, CaseResult
-from sorting_analysis.sorts import SortStats
-from sorting_analysis.timing import TimingResult, VerificationError
+from sorting_analysis.data import DUPES_FIELDS, INSPECTION_FIELDS, complete_cases, inspect_data, load_csv
+from sorting_analysis.experiments import (case_row, read_cases, run_input_order, run_repeated_values, run_scaling,
+                                          write_cases, write_rows, write_runs)
+from sorting_analysis.plots import (matplotlib_available, plot_bubble_extrapolation, plot_growth, plot_input_order,
+                                    plot_repeated_values, plot_scaling)
+from sorting_analysis.timing import VerificationError
 
 # Exit codes returned by main.
 EXIT_OK = 0
@@ -32,15 +35,14 @@ EXIT_INPUT = 2
 EXIT_INTERRUPTED = 130
 # Commands accepted on the command line; `all` is the official run.
 COMMANDS = ("check", "scaling", "order", "dupes", "analyze", "plot", "all")
-# The four input orders of the input-order experiment.
-ORDERS = ("random", "sorted", "reversed", "nearly")
 # CSV files written by an official run (recorded in metadata.json).
 CSV_OUTPUTS = ("inspection.csv", "cases.csv", "timing_runs.csv", "dupes_stats.csv", "growth.csv",
                "extrapolation.csv")
-# Number of rows the mock dataset pretends to have.
-MOCK_ROW_COUNT = 20640
-# Seconds the mock timings charge per comparison.
-MOCK_SECONDS_PER_COMPARISON = 1e-8
+# PNG files the charts can write; an official run deletes old copies of these only.
+PLOT_OUTPUTS = ("scaling_summary.png", "scaling_tiny_runtime.png", "input_order_summary.png",
+                "repeated_values_summary.png", "growth_factors.png", "bubble_extrapolation.png")
+# Name of the success marker of an official run.
+METADATA_NAME = "metadata.json"
 
 
 class InputError(Exception):
@@ -49,182 +51,6 @@ class InputError(Exception):
     - Raised for a problem with the dataset, the arguments, the output folder or cases.csv.
     - main turns it into exit code 2.
     """
-
-
-# -----------------------------------------------------------------------------
-# Mocks: fake versions of the steps that are not implemented yet. They return
-# fixed fake values and never write files.
-# -----------------------------------------------------------------------------
-
-# Function to fake load_csv until it is implemented
-def mock_load_csv(path):
-    if not os.path.isfile(path):
-        raise FileNotFoundError(path)
-    fake_row = {"median_income": "3.5", "housing_median_age": "20.0", "median_house_value": "150000.0"}
-    return [fake_row] * MOCK_ROW_COUNT
-
-
-# Function to fake complete_cases until it is implemented
-def mock_complete_cases(rows, columns):
-    return list(range(len(rows)))
-
-
-# Function to fake inspect_data until it is implemented
-def mock_inspect_data(rows, columns):
-    return [{"column": column, "rows": len(rows), "missing": 0, "distinct": 0, "excluded_rows": 0}
-            for column in columns]
-
-
-# Function to build one fake case for the mocked experiments
-def mock_case(experiment, algorithm, column, order, input_size):
-    """Fake case: n(n-1)/2 comparisons (n log n for merge sort), a fixed time per comparison."""
-    if algorithm == "merge":
-        comparisons = input_size * input_size.bit_length()
-        swaps = None
-    else:
-        comparisons = input_size * (input_size - 1) // 2
-        swaps = comparisons // 2
-    seconds = MOCK_SECONDS_PER_COMPARISON * comparisons
-    sort_stats = SortStats(comparisons, comparisons, swaps)
-    timing = TimingResult((seconds,) * 5, 1, seconds, seconds, seconds)
-    return CaseResult(experiment, algorithm, column, order, input_size, sort_stats, timing)
-
-
-# Function to fake run_scaling until it is implemented
-def mock_run_scaling(rows, usable_indices, settings):
-    return [mock_case("scaling", algorithm, settings.scaling_column, "random", size)
-            for size in settings.scaling_sizes for algorithm in ALGORITHMS]
-
-
-# Function to fake run_input_order until it is implemented
-def mock_run_input_order(rows, usable_indices, settings):
-    return [mock_case("order", algorithm, settings.order_column, order, settings.order_sample_size)
-            for order in ORDERS for algorithm in ALGORITHMS]
-
-
-# Function to fake run_repeated_values until it is implemented
-def mock_run_repeated_values(rows, usable_indices, settings):
-    size = settings.order_sample_size
-    cases = [mock_case("dupes", algorithm, column, "random", size)
-             for column in settings.selected_columns for algorithm in ALGORITHMS]
-    duplicate_rows = [{"column": column, "sample_size": size, "distinct": 0, "modal_value": 0, "modal_count": 0,
-                       "repeated_distinct": 0, "repeated_observations": 0}
-                      for column in settings.selected_columns]
-    return cases, duplicate_rows
-
-
-# Function to fake case_row until it is implemented
-def mock_case_row(case):
-    sort_stats, timing = case.get_sort_stats(), case.get_timing()
-    return {"experiment": case.get_experiment(), "algorithm": case.get_algorithm(), "column": case.get_column(),
-            "order": case.get_order(), "input_size": case.get_input_size(),
-            "comparisons": sort_stats.get_comparisons(), "writes": sort_stats.get_writes(),
-            "swaps": sort_stats.get_swaps(), "sorts_per_batch": timing.get_sorts_per_batch(),
-            "median_s": timing.get_median_seconds(), "min_s": timing.get_min_seconds(),
-            "max_s": timing.get_max_seconds()}
-
-
-# Function to fake write_rows until it is implemented
-def mock_write_rows(rows, path, fieldnames):
-    print(f"  [mock] {path}: {len(rows)} rows (not written)")
-
-
-# Function to fake write_cases until it is implemented
-def mock_write_cases(cases, path):
-    print(f"  [mock] {path}: {len(cases)} rows (not written)")
-
-
-# Function to fake write_runs until it is implemented
-def mock_write_runs(cases, path):
-    print(f"  [mock] {path}: {len(cases)} cases (not written)")
-
-
-# Function to fake read_cases until it is implemented
-def mock_read_cases(path):
-    return []
-
-
-# Function to fake growth_factors until it is implemented
-def mock_growth_factors(cases):
-    return []
-
-
-# Function to fake extrapolate_bubble until it is implemented
-def mock_extrapolate_bubble(cases, target_size, base_sizes):
-    return {}, []
-
-
-# Function to fake matplotlib_available until it is implemented
-def mock_matplotlib_available():
-    return False
-
-
-# Function to fake plot_scaling until it is implemented
-def mock_plot_scaling(cases, output_folder):
-    return []
-
-
-# Function to fake plot_input_order until it is implemented
-def mock_plot_input_order(cases, output_folder):
-    return []
-
-
-# Function to fake plot_repeated_values until it is implemented
-def mock_plot_repeated_values(cases, output_folder):
-    return []
-
-
-# -----------------------------------------------------------------------------
-# Pipeline steps: one line per step. Replace the mock with the import in the
-# comment when the step is implemented, then delete the mock.
-# -----------------------------------------------------------------------------
-
-load_csv = mock_load_csv                          # from sorting_analysis.data import load_csv
-complete_cases = mock_complete_cases              # from sorting_analysis.data import complete_cases
-inspect_data = mock_inspect_data                  # from sorting_analysis.data import inspect_data
-run_scaling = mock_run_scaling                    # from sorting_analysis.experiments import run_scaling
-run_input_order = mock_run_input_order            # from sorting_analysis.experiments import run_input_order
-run_repeated_values = mock_run_repeated_values    # from sorting_analysis.experiments import run_repeated_values
-case_row = mock_case_row                          # from sorting_analysis.experiments import case_row
-write_rows = mock_write_rows                      # from sorting_analysis.experiments import write_rows
-write_cases = mock_write_cases                    # from sorting_analysis.experiments import write_cases
-write_runs = mock_write_runs                      # from sorting_analysis.experiments import write_runs
-read_cases = mock_read_cases                      # from sorting_analysis.experiments import read_cases
-growth_factors = mock_growth_factors              # from sorting_analysis.analysis import growth_factors
-extrapolate_bubble = mock_extrapolate_bubble      # from sorting_analysis.analysis import extrapolate_bubble
-matplotlib_available = mock_matplotlib_available  # from sorting_analysis.plots import matplotlib_available
-plot_scaling = mock_plot_scaling                  # from sorting_analysis.plots import plot_scaling
-plot_input_order = mock_plot_input_order          # from sorting_analysis.plots import plot_input_order
-plot_repeated_values = mock_plot_repeated_values  # from sorting_analysis.plots import plot_repeated_values
-
-# Every pipeline step by name, used to report which steps are still mocks.
-PIPELINE_STEPS = {
-    "load_csv": load_csv, "complete_cases": complete_cases, "inspect_data": inspect_data,
-    "run_scaling": run_scaling, "run_input_order": run_input_order, "run_repeated_values": run_repeated_values,
-    "case_row": case_row, "write_rows": write_rows, "write_cases": write_cases, "write_runs": write_runs,
-    "read_cases": read_cases, "growth_factors": growth_factors, "extrapolate_bubble": extrapolate_bubble,
-    "matplotlib_available": matplotlib_available, "plot_scaling": plot_scaling,
-    "plot_input_order": plot_input_order, "plot_repeated_values": plot_repeated_values,
-}
-
-
-# -----------------------------------------------------------------------------
-# Pipeline
-# -----------------------------------------------------------------------------
-
-# Function to list the steps that are still mocks
-def mocked_steps():
-    """
-    Description:
-    - Return the names of the pipeline steps still bound to a mock function.
-
-    Input arguments:
-       None
-
-    Return:
-        list[str]: e.g. ['load_csv', 'run_scaling']; empty when everything is real.
-    """
-    return [name for name, step in PIPELINE_STEPS.items() if step.__name__.startswith("mock_")]
 
 
 # Function to read the command line
@@ -250,8 +76,8 @@ def parse_arguments(argument_list):
 def choose_output_folder(command, requested_folder, settings):
     """
     Description:
-    - Use --out if given; otherwise results/ for an official `all` run and results/dev/ for
-      development commands and for any run that still uses mocks.
+    - Use --out if given; otherwise results/ for the official `all` run and results/dev/ for the
+      development commands.
 
     Input arguments:
        command (str): Command name, e.g. 'all'.
@@ -263,46 +89,9 @@ def choose_output_folder(command, requested_folder, settings):
     """
     if requested_folder:
         return requested_folder
-    if command == "all" and not mocked_steps():
+    if command == "all":
         return settings.results_folder
     return os.path.join(settings.results_folder, "dev")
-
-
-# Function to compare two folder paths
-def same_folder(first_path, second_path):
-    """
-    Description:
-    - Whether two paths name the same folder (case-insensitive on Windows).
-
-    Input arguments:
-       first_path (str): A folder path.
-       second_path (str): Another folder path.
-
-    Return:
-        bool: True if both point to the same folder.
-    """
-    return os.path.normcase(os.path.realpath(first_path)) == os.path.normcase(os.path.realpath(second_path))
-
-
-# Function to protect the official results while mocks are in use
-def check_output_folder(output_folder, settings):
-    """
-    Description:
-    - While any step is mocked, refuse to write into the official results folder or into a
-      folder that already holds a metadata.json.
-
-    Input arguments:
-       output_folder (str): Folder the command will write to.
-       settings (Settings): Run settings.
-
-    Return:
-        None (raises InputError if the folder is protected)
-    """
-    if not mocked_steps():
-        return
-    is_official = same_folder(output_folder, settings.results_folder)
-    if is_official or os.path.exists(os.path.join(output_folder, "metadata.json")):
-        raise InputError(f"steps are still mocked - refusing to write into {output_folder}; use results/dev/")
 
 
 # Function to load the dataset and find the usable rows
@@ -414,44 +203,61 @@ def run_experiments(experiment_names, rows, usable_indices, settings, output_fol
 
 
 # Function to compute growth factors and the bubble sort estimate
-def run_analysis(case_rows, settings, output_folder):
+def compute_analysis(case_rows, settings):
     """
     Description:
-    - Compute the growth factors and the bubble sort estimate (quadratic regression on the
-      base sizes), print the estimate and the measured-versus-fitted times, and write
-      growth.csv and extrapolation.csv.
+    - Growth factors of every doubling pair and the bubble sort estimate (quadratic regression on
+      the base sizes), from the scaling rows of case_rows.
 
     Input arguments:
        case_rows (list[dict]): Case rows from case_row or read_cases.
        settings (Settings): Run settings (extrapolation target and base sizes).
+
+    Return:
+        tuple: (growth rows, estimate row, measured-versus-fitted rows) (raises ValueError on a
+         missing base size, an invalid timing or a singular fit)
+    """
+    growth_rows = growth_factors(case_rows)
+    estimate_row, fitted_rows = extrapolate_bubble(case_rows, settings.extrapolation_target_size,
+                                                   settings.extrapolation_base_sizes)
+    return growth_rows, estimate_row, fitted_rows
+
+
+# Function to write and print the analysis
+def write_analysis(growth_rows, estimate_row, fitted_rows, output_folder):
+    """
+    Description:
+    - Write growth.csv and extrapolation.csv, and print the estimate and the measured-versus-fitted times.
+
+    Input arguments:
+       growth_rows (list[dict]): Rows from growth_factors.
+       estimate_row (dict): Estimate row from extrapolate_bubble.
+       fitted_rows (list[dict]): Measured-versus-fitted rows from extrapolate_bubble.
        output_folder (str): Folder for the CSV files.
 
     Return:
-        None (raises ValueError on a missing base size, an invalid timing or a singular fit)
+        None
     """
-    write_rows(growth_factors(case_rows), os.path.join(output_folder, "growth.csv"), GROWTH_FIELDS)
-    target_size = settings.extrapolation_target_size
-    estimate_row, fitted_rows = extrapolate_bubble(case_rows, target_size, settings.extrapolation_base_sizes)
-    if estimate_row:
-        print(f"  Bubble sort estimate for n = {target_size}: {estimate_row['estimate_s']:.1f} s "
-              f"(T(n) = {estimate_row['a0']:.3g} + {estimate_row['a1']:.3g} n + {estimate_row['a2']:.3g} n^2)")
-        for fitted in fitted_rows:
-            print(f"    n = {fitted['input_size']}: measured {fitted['measured_s']:.4g} s, "
-                  f"fitted {fitted['fitted_s']:.4g} s")
-    else:
-        print(f"  Bubble sort estimate for n = {target_size}: no estimate available")
-    write_rows([estimate_row] if estimate_row else [], os.path.join(output_folder, "extrapolation.csv"),
-               EXTRAPOLATION_FIELDS)
+    write_rows(growth_rows, os.path.join(output_folder, "growth.csv"), GROWTH_FIELDS)
+    print(f"  Bubble sort estimate for n = {estimate_row['target_size']}: {estimate_row['estimate_s']:.1f} s "
+          f"(T(n) = {estimate_row['a0']:.3g} + {estimate_row['a1']:.3g} n + {estimate_row['a2']:.3g} n^2)")
+    for fitted in fitted_rows:
+        print(f"    n = {fitted['input_size']}: measured {fitted['measured_s']:.4g} s, "
+              f"fitted {fitted['fitted_s']:.4g} s")
+    write_rows([estimate_row], os.path.join(output_folder, "extrapolation.csv"), EXTRAPOLATION_FIELDS)
 
 
 # Function to draw every chart
-def run_plots(case_rows, output_folder):
+def run_plots(case_rows, growth_rows, estimate_row, fitted_rows, output_folder):
     """
     Description:
-    - Draw the scaling, input-order and repeated-values charts.
+    - Draw the scaling, input-order, repeated-values, growth and bubble extrapolation charts.
 
     Input arguments:
        case_rows (list[dict]): Case rows from case_row or read_cases.
+       growth_rows (list[dict]): Rows from growth_factors.
+       estimate_row (dict): Estimate row from extrapolate_bubble.
+       fitted_rows (list[dict]): Measured-versus-fitted rows from extrapolate_bubble.
        output_folder (str): Folder for the PNG files.
 
     Return:
@@ -460,6 +266,8 @@ def run_plots(case_rows, output_folder):
     plot_files = []
     for plot in (plot_scaling, plot_input_order, plot_repeated_values):
         plot_files += plot(case_rows, output_folder)
+    plot_files += plot_growth(growth_rows, output_folder)
+    plot_files += plot_bubble_extrapolation(case_rows, estimate_row, fitted_rows, output_folder)
     return plot_files
 
 
@@ -484,12 +292,33 @@ def read_case_rows(output_folder):
         raise InputError(f"{path} is malformed: {error}") from None
 
 
+# Function to analyze the cases.csv of an earlier run
+def analyze_saved_cases(output_folder, settings):
+    """
+    Description:
+    - Read cases.csv and compute the analysis; a file without the needed scaling rows is an input
+      error, not a computation failure.
+
+    Input arguments:
+       output_folder (str): Folder holding cases.csv.
+       settings (Settings): Run settings.
+
+    Return:
+        tuple: (case rows, growth rows, estimate row, measured-versus-fitted rows) (raises InputError)
+    """
+    case_rows = read_case_rows(output_folder)
+    try:
+        return (case_rows,) + compute_analysis(case_rows, settings)
+    except ValueError as error:
+        raise InputError(f"{os.path.join(output_folder, 'cases.csv')} cannot be analyzed: {error}") from None
+
+
 # Function to run the official pipeline
 def run_all(csv_path, settings, output_folder):
     """
     Description:
-    - Official run: inspection, all experiments, analysis, plots, then metadata.json last.
-    - With mocks in use, old outputs are kept and metadata.json is not written.
+    - Official run: remove old outputs, then inspection, all experiments, analysis, plots, and
+      metadata.json last.
 
     Input arguments:
        csv_path (str): Dataset path.
@@ -499,38 +328,34 @@ def run_all(csv_path, settings, output_folder):
     Return:
         None
     """
-    is_official = not mocked_steps()
-    if is_official:
-        remove_previous_outputs(output_folder)
+    remove_previous_outputs(output_folder)
     rows, usable_indices = load_dataset(csv_path, settings)
     inspection_rows = run_inspection(rows, settings)
     write_rows(inspection_rows, os.path.join(output_folder, "inspection.csv"), INSPECTION_FIELDS)
     cases = run_experiments(("scaling", "order", "dupes"), rows, usable_indices, settings, output_folder)
     case_rows = [case_row(case) for case in cases]
-    run_analysis(case_rows, settings, output_folder)
+    growth_rows, estimate_row, fitted_rows = compute_analysis(case_rows, settings)
+    write_analysis(growth_rows, estimate_row, fitted_rows, output_folder)
 
     if matplotlib_available():
-        plot_files = run_plots(case_rows, output_folder)
+        plot_files = run_plots(case_rows, growth_rows, estimate_row, fitted_rows, output_folder)
         plots_status = "complete"
     else:
         print("INCOMPLETE: plots missing (matplotlib not installed) - build the charts from the CSV files")
         plot_files = []
         plots_status = "missing"
 
-    if is_official:
-        generated_files = [os.path.join(output_folder, name) for name in CSV_OUTPUTS] + plot_files
-        write_metadata(os.path.join(output_folder, "metadata.json"), csv_path, settings, plots_status,
-                       generated_files)
-    else:
-        print("Mock run: metadata.json not written")
+    generated_files = [os.path.join(output_folder, name) for name in CSV_OUTPUTS] + plot_files
+    write_metadata(os.path.join(output_folder, METADATA_NAME), csv_path, settings, plots_status, generated_files)
 
 
 # Function to delete the outputs of an earlier official run
 def remove_previous_outputs(output_folder):
     """
     Description:
-    - Delete metadata.json and old PNG files before an official run, so a failed run never
-      leaves an old success marker or stale charts.
+    - Delete metadata.json, a leftover temporary metadata file and the chart PNGs (PLOT_OUTPUTS)
+      before an official run, so a failed run never leaves an old success marker or stale charts.
+    - Other files, e.g. charts made by hand in Excel, are kept.
 
     Input arguments:
        output_folder (str): Folder of the official run.
@@ -538,15 +363,18 @@ def remove_previous_outputs(output_folder):
     Return:
         None
     """
-    raise NotImplementedError("remove_previous_outputs: not implemented yet")
+    for name in (METADATA_NAME, METADATA_NAME + ".tmp") + PLOT_OUTPUTS:
+        path = os.path.join(output_folder, name)
+        if os.path.isfile(path):
+            os.remove(path)
 
 
 # Function to write the success marker of an official run
 def write_metadata(path, csv_path, settings, plots_status, generated_files):
     """
     Description:
-    - Write metadata.json: dataset path and SHA-256, seeds, sizes, timing tiers, Python
-      version, a timestamp, plots_status and generated_files.
+    - Write metadata.json: dataset path and SHA-256, seeds, columns, sizes, timing tiers, Python
+      version, platform, a UTC timestamp, plots_status and generated_files.
     - Write a temporary file first, then rename it with os.replace, so an interrupted run
       never leaves a partial file.
 
@@ -560,7 +388,31 @@ def write_metadata(path, csv_path, settings, plots_status, generated_files):
     Return:
         None
     """
-    raise NotImplementedError("write_metadata: not implemented yet")
+    with open(csv_path, "rb") as dataset_file:
+        dataset_sha256 = hashlib.sha256(dataset_file.read()).hexdigest()
+    metadata = {
+        "dataset": {"path": csv_path.replace(os.sep, "/"), "sha256": dataset_sha256},
+        "seeds": {"sample": settings.sample_seed, "shuffle": settings.shuffle_seed,
+                  "nearly_sorted": settings.nearly_sorted_seed},
+        "columns": {"selected": list(settings.selected_columns), "scaling": settings.scaling_column,
+                    "order": settings.order_column},
+        "sizes": {"scaling": list(settings.scaling_sizes), "order_sample": settings.order_sample_size,
+                  "extrapolation_base": list(settings.extrapolation_base_sizes),
+                  "extrapolation_target": settings.extrapolation_target_size},
+        "timing": {"timed_batches": settings.timed_batches, "small_input_limit": settings.small_input_limit,
+                   "small_input_repetitions": settings.small_input_repetitions,
+                   "normal_input_repetitions": settings.normal_input_repetitions},
+        "python_version": platform.python_version(),
+        "platform": platform.platform(),
+        "timestamp_utc": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
+        "plots_status": plots_status,
+        "generated_files": [file_path.replace(os.sep, "/") for file_path in generated_files],
+    }
+    temporary_path = path + ".tmp"
+    with open(temporary_path, "w", encoding="utf-8") as metadata_file:
+        json.dump(metadata, metadata_file, indent=2)
+        metadata_file.write("\n")
+    os.replace(temporary_path, path)
 
 
 # Function to run one command
@@ -576,23 +428,23 @@ def run_command(command, csv_path, settings, output_folder):
        output_folder (str): Folder for the outputs.
 
     Return:
-        None (InputError, VerificationError, ValueError and NotImplementedError are handled by main)
+        None (InputError, VerificationError and other errors are handled by main)
     """
     if command != "check":
-        check_output_folder(output_folder, settings)
         os.makedirs(output_folder, exist_ok=True)
     if command == "check":
-        rows, _ = load_dataset(csv_path, settings, need_usable_rows=False)
+        rows, usable_indices = load_dataset(csv_path, settings, need_usable_rows=False)
         run_inspection(rows, settings)
     elif command in ("scaling", "order", "dupes"):
         rows, usable_indices = load_dataset(csv_path, settings)
         run_experiments((command,), rows, usable_indices, settings, output_folder)
     elif command == "analyze":
-        run_analysis(read_case_rows(output_folder), settings, output_folder)
+        case_rows, growth_rows, estimate_row, fitted_rows = analyze_saved_cases(output_folder, settings)
+        write_analysis(growth_rows, estimate_row, fitted_rows, output_folder)
     elif command == "plot":
         if not matplotlib_available():
             raise InputError("the plot command needs matplotlib")
-        run_plots(read_case_rows(output_folder), output_folder)
+        run_plots(*analyze_saved_cases(output_folder, settings), output_folder)
     else:
         run_all(csv_path, settings, output_folder)
 
@@ -614,8 +466,6 @@ def main(argument_list=None, settings=DEFAULT_SETTINGS):
     arguments = parse_arguments(argument_list)
     csv_path = arguments.csv or settings.csv_path
     output_folder = choose_output_folder(arguments.command, arguments.out, settings)
-    if mocked_steps():
-        print(f"Mocked steps: {', '.join(mocked_steps())}")
     try:
         run_command(arguments.command, csv_path, settings, output_folder)
     except InputError as error:
@@ -623,9 +473,6 @@ def main(argument_list=None, settings=DEFAULT_SETTINGS):
         return EXIT_INPUT
     except VerificationError as error:
         print(f"VERIFICATION FAILED: {error}", file=sys.stderr)
-        return EXIT_FAILURE
-    except NotImplementedError as error:
-        print(f"NOT IMPLEMENTED: {error}", file=sys.stderr)
         return EXIT_FAILURE
     except KeyboardInterrupt:
         print("Interrupted - metadata.json not written", file=sys.stderr)
