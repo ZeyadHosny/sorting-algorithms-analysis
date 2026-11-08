@@ -1,0 +1,4 @@
+column,sample_size,distinct,modal_value,modal_count,repeated_distinct,repeated_observations
+median_income,2000,1785,4.125,8,147,362
+housing_median_age,2000,51,52.0,106,51,2000
+median_house_value,2000,1322,500001.0,91,369,1047
