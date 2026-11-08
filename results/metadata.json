@@ -1,0 +1,68 @@
+{
+  "dataset": {
+    "path": "housing.csv",
+    "sha256": "b214a65099c1dcc2ea7797935aff103fa0445220a366fb74beacb59486e548ff"
+  },
+  "seeds": {
+    "sample": 42,
+    "shuffle": 43,
+    "nearly_sorted": 44
+  },
+  "columns": {
+    "selected": [
+      "median_income",
+      "housing_median_age",
+      "median_house_value"
+    ],
+    "scaling": "median_income",
+    "order": "median_income"
+  },
+  "sizes": {
+    "scaling": [
+      5,
+      10,
+      20,
+      250,
+      500,
+      1000,
+      2000,
+      4000
+    ],
+    "order_sample": 2000,
+    "extrapolation_base": [
+      250,
+      500,
+      1000,
+      2000,
+      4000
+    ],
+    "extrapolation_target": 20640
+  },
+  "timing": {
+    "timed_batches": 5,
+    "small_input_limit": 20,
+    "small_input_repetitions": 1000,
+    "normal_input_repetitions": 1
+  },
+  "python_version": "3.14.6",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "timestamp_utc": "2026-11-08T04:07:17+00:00",
+  "plots_status": "complete",
+  "generated_files": [
+    "results/inspection.csv",
+    "results/cases.csv",
+    "results/timing_runs.csv",
+    "results/dupes_stats.csv",
+    "results/growth.csv",
+    "results/extrapolation.csv",
+    "results/scaling_summary.png",
+    "results/scaling_tiny_runtime.png",
+    "results/input_order_summary.png",
+    "results/repeated_values_summary.png",
+    "results/growth_factors.png",
+    "results/bubble_extrapolation.png",
+    "results/scaling_table.png",
+    "results/input_order_table.png",
+    "results/repeated_values_table.png"
+  ]
+}

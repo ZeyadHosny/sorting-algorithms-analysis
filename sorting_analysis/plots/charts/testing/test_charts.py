@@ -1,4 +1,4 @@
-"""Tests for all six chart outputs. Fixture numbers are invented, not project results."""
+"""Tests for all chart and result-table outputs. Fixture numbers are invented, not project results."""
 import builtins
 import copy
 import math
@@ -9,7 +9,7 @@ import unittest
 from unittest.mock import patch
 
 from sorting_analysis.plots import (matplotlib_available, plot_bubble_extrapolation, plot_growth,
-                                    plot_input_order, plot_repeated_values, plot_scaling)
+                                    plot_input_order, plot_repeated_values, plot_result_tables, plot_scaling)
 
 
 # Function to construct a labelled test case with invented timing values
@@ -160,6 +160,93 @@ class TestCharts(unittest.TestCase):
         """Small cases -> PNG files exist."""
         self.assert_pngs(plot_repeated_values(self.cases, self.folder), ["repeated_values_summary.png"])
 
+    def test_result_tables_written(self):
+        """Small cases -> one table PNG per experiment, in experiment order."""
+        self.assert_pngs(plot_result_tables(self.cases, self.folder),
+                         ["scaling_table.png", "input_order_table.png", "repeated_values_table.png"])
+
+    def test_result_table_contents(self):
+        """Rows follow the category and algorithm order; counts use separators, merge swaps read n/a."""
+        captured = {}
+
+        # Function to record the cell text of each table
+        def inspect_figure(figure, path, **keywords):
+            """
+            Description:
+            - Capture the table cells as a list of rows, plus all figure-level text.
+
+            Input arguments:
+               figure (Figure): Figure being saved.
+               path (str): Output path.
+               keywords (dict): Export settings.
+
+            Return:
+                None
+            """
+            cells = figure.axes[0].tables[0].get_celld()
+            row_count = max(row for row, column in cells) + 1
+            column_count = max(column for row, column in cells) + 1
+            captured[os.path.basename(path)] = (
+                [[cells[(row, column)].get_text().get_text() for column in range(column_count)]
+                 for row in range(row_count)],
+                " ".join(text.get_text() for text in figure.texts))
+
+        rows = [row for row in self.cases if not (row["experiment"] == "order" and row["algorithm"] == "merge"
+                                                   and row["order"] == "nearly")]
+        with patch("matplotlib.figure.Figure.savefig", autospec=True, side_effect=inspect_figure):
+            plot_result_tables(rows, self.folder)
+        scaling, scaling_text = captured["scaling_table.png"]
+        self.assertEqual(scaling[0], ["Input size, n", "Algorithm", "Comparisons", "Writes", "Swaps", "Median runtime"])
+        self.assertEqual(len(scaling), 1 + 4 * 3)
+        self.assertEqual(scaling[1], ["5", "Bubble Sort", "10", "10", "0", "5.00 µs"])
+        self.assertEqual(scaling[2][0], "")
+        self.assertEqual(scaling[3][4], "n/a")
+        self.assertEqual(scaling[10], ["250", "Bubble Sort", "31,125", "500", "0", "250 µs"])
+        self.assertIn("Scaling Experiment: Results Table", scaling_text)
+        self.assertIn("Swaps: not applicable to merge sort.", scaling_text)
+        order, order_text = captured["input_order_table.png"]
+        self.assertEqual([row[0] for row in order[1::3]], ["Random", "Already sorted", "Reverse sorted", "Nearly sorted"])
+        self.assertEqual(len(order), 1 + 11)
+        self.assertIn("Missing cases: 1.", order_text)
+        dupes, dupes_text = captured["repeated_values_table.png"]
+        self.assertEqual([row[0] for row in dupes[1::3]], ["Median income", "Housing median age", "Median house value"])
+        self.assertIn("Repeated-Values Experiment: Results Table", dupes_text)
+
+    def test_table_runtime_format(self):
+        """Below 1,000 s: three significant figures in µs, ms or s; from 1,000 s: whole seconds with separators."""
+        expected = ((0.00002, "20.0 µs"), (0.0000969, "96.9 µs"), (0.00099996, "1.00 ms"), (0.00383, "3.83 ms"),
+                    (0.272, "272 ms"), (1.116, "1.12 s"), (30.42, "30.4 s"), (1234.5, "1,234 s"))
+        # The table lists sizes 5, 10, 20, 250, each as bubble, selection, merge: the first 8 rows get these times.
+        order = [(size, algorithm) for size in (5, 10, 20, 250) for algorithm in ("bubble", "selection", "merge")]
+        rows = copy.deepcopy([row for row in self.cases if row["experiment"] == "scaling"])
+        for row in rows:
+            position = order.index((row["input_size"], row["algorithm"]))
+            if position < len(expected):
+                seconds = expected[position][0]
+                row["median_s"], row["min_s"], row["max_s"] = seconds, seconds * 0.9, seconds * 1.1
+        captured = {}
+
+        # Function to record the runtime column of the scaling table
+        def inspect_figure(figure, path, **keywords):
+            """
+            Description:
+            - Capture the Median runtime cells of the scaling table.
+
+            Input arguments:
+               figure (Figure): Figure being saved.
+               path (str): Output path.
+               keywords (dict): Export settings.
+
+            Return:
+                None
+            """
+            cells = figure.axes[0].tables[0].get_celld()
+            captured[os.path.basename(path)] = [cells[(row, 5)].get_text().get_text() for row in range(1, 9)]
+
+        with patch("matplotlib.figure.Figure.savefig", autospec=True, side_effect=inspect_figure):
+            plot_result_tables(rows, self.folder)
+        self.assertEqual(captured["scaling_table.png"], [text for seconds, text in expected])
+
     def test_growth_chart_written(self):
         """Prepared growth rows produce the observed-versus-theoretical PNG."""
         self.assert_pngs(plot_growth(self.growth, self.folder), ["growth_factors.png"])
@@ -216,7 +303,7 @@ class TestCharts(unittest.TestCase):
             self.assertAlmostEqual(actual, expected)
 
     def test_zero_writes_and_missing_cases_are_not_fabricated(self):
-        """True zero writes remain zero on a linear axis; an absent case is a NaN gap with a notice."""
+        """True zero writes remain zero on the symlog axis; an absent case is a NaN gap with a notice."""
         rows = [row for row in self.cases if row["experiment"] == "order"
                 and not (row["algorithm"] == "merge" and row["order"] == "nearly")]
         captured = {}
@@ -243,7 +330,7 @@ class TestCharts(unittest.TestCase):
 
         with patch("matplotlib.figure.Figure.savefig", autospec=True, side_effect=inspect_figure):
             plot_input_order(rows, self.folder)
-        self.assertEqual(captured["scale"], "linear")
+        self.assertEqual(captured["scale"], "symlog")
         self.assertEqual(captured["bubble"][1], 0)
         self.assertTrue(math.isnan(captured["merge"][3]))
         self.assertIn("Missing cases: 1", captured["text"])
@@ -275,15 +362,15 @@ class TestCharts(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, message):
                     plot_scaling(rows, self.folder)
 
-    def test_writes_axis_stays_linear_with_positive_writes(self):
-        """Scaling writes are all positive and vary widely, yet the writes panel stays linear from zero."""
+    def test_summary_axis_scales(self):
+        """Runtime is always log, writes symlog from zero; comparisons are log only for a wide positive range."""
         captured = {}
 
-        # Function to record the axis scales of the scaling summary
+        # Function to record the axis scales of each summary
         def inspect_figure(figure, path, **keywords):
             """
             Description:
-            - Capture the y-axis scale and lower limit of each summary panel.
+            - Capture the y-axis scale, lower limit and symlog threshold of each summary panel.
 
             Input arguments:
                figure (Figure): Figure being saved.
@@ -293,14 +380,119 @@ class TestCharts(unittest.TestCase):
             Return:
                 None
             """
-            captured.setdefault(os.path.basename(path), [(axis.get_yscale(), axis.get_ylim()[0])
-                                                         for axis in figure.axes])
+            captured[os.path.basename(path)] = [
+                (axis.get_yscale(), axis.get_ylim()[0], getattr(axis.yaxis.get_transform(), "linthresh", None))
+                for axis in figure.axes]
 
         with patch("matplotlib.figure.Figure.savefig", autospec=True, side_effect=inspect_figure):
             plot_scaling(self.cases, self.folder)
-        scales = captured["scaling_summary.png"]
-        self.assertEqual([scale for scale, bottom in scales], ["log", "log", "linear"])
-        self.assertEqual(scales[2][1], 0)
+            plot_repeated_values(self.cases, self.folder)
+        scaling = captured["scaling_summary.png"]
+        self.assertEqual([scale for scale, bottom, threshold in scaling], ["log", "log", "symlog"])
+        self.assertEqual(scaling[2][1:], (0, 1))
+        # Fixture runtimes span only 3x, yet the runtime panel is log; equal comparisons stay linear.
+        dupes = captured["repeated_values_summary.png"]
+        self.assertEqual([scale for scale, bottom, threshold in dupes], ["log", "linear", "symlog"])
+
+    def test_summary_headings_and_footer_layout(self):
+        """Each summary names its experiment and its footer clears the axes; no figure mentions people or the PDF."""
+        from matplotlib.text import Text
+
+        captured = {}
+
+        # Function to record all text and the footer position after drawing
+        def inspect_figure(figure, path, **keywords):
+            """
+            Description:
+            - Draw the figure, then capture every text artist and whether the footer lies below the lowest axis.
+
+            Input arguments:
+               figure (Figure): Figure being saved.
+               path (str): Output path.
+               keywords (dict): Export settings.
+
+            Return:
+                None
+            """
+            figure.set_dpi(keywords.get("dpi", 100))
+            figure.canvas.draw()
+            renderer = figure.canvas.get_renderer()
+            footers = [text for text in figure.texts if text.get_text().startswith("Measured runtime:")]
+            lowest_axis = min(axis.get_tightbbox(renderer).y0 for axis in figure.axes)
+            # The growth chart has no runtime footer; it is checked for text only.
+            footer_clear = footers[0].get_window_extent(renderer).y1 < lowest_axis if footers else None
+            captured[os.path.basename(path)] = (" ".join(text.get_text() for text in figure.findobj(match=Text)),
+                                                footer_clear)
+
+        rows = [row for row in self.cases if not (row["experiment"] == "order" and row["algorithm"] == "merge"
+                                                   and row["order"] == "nearly")]
+        with patch("matplotlib.figure.Figure.savefig", autospec=True, side_effect=inspect_figure):
+            plot_scaling(rows, self.folder)
+            plot_input_order(rows, self.folder)
+            plot_repeated_values(rows, self.folder)
+            plot_growth(self.growth, self.folder)
+            plot_bubble_extrapolation(self.bubble_cases, self.estimate, self.fitted, self.folder)
+            plot_result_tables(rows, self.folder)
+        self.assertEqual(len(captured), 9)
+        headings = {"scaling_summary.png": "Scaling Experiment",
+                    "input_order_summary.png": "Input-Order Experiment",
+                    "repeated_values_summary.png": "Repeated-Values Experiment"}
+        for name, heading in headings.items():
+            with self.subTest(chart=name):
+                text, footer_clear = captured[name]
+                self.assertIn(heading, text)
+                self.assertIn("Writes: symmetric log scale", text)
+                self.assertNotIn("min–max", text)
+        self.assertIn("Missing cases: 1", captured["input_order_summary.png"][0])
+        # Every figure that shows runtimes explains them once in its footer, which clears the axes.
+        for name, (text, footer_clear) in captured.items():
+            if name != "growth_factors.png":
+                with self.subTest(chart=name, check="runtime footer"):
+                    self.assertIn("Measured runtime: median of batch averages.", text)
+                    self.assertTrue(footer_clear)
+            for word in ("instructor", "pdf", "bahareh", "zeyad", "confirmed", "per sort"):
+                with self.subTest(chart=name, word=word):
+                    self.assertNotIn(word, text.lower())
+
+    def test_writes_ticks_for_small_and_zero_counts(self):
+        """Maximum writes of 0, 1, 5, 10, 1,000 and 4,000,000 keep 0 and 1 labelled and a tick at or above the maximum."""
+        # Every decade up to 10^4; every second decade, counted down from the top, above it.
+        exact_ticks = {1000: [0, 1, 1000, 100, 10], 4_000_000: [0, 1, 10 ** 7, 10 ** 5, 10 ** 3, 10]}
+        for largest in (0, 1, 5, 10, 1000, 4_000_000):
+            rows = copy.deepcopy([row for row in self.cases if row["experiment"] == "order"])
+            for index, row in enumerate(rows):
+                row["writes"] = largest if index == 0 else 0
+            captured = {}
+
+            # Function to record the writes axis ticks and plotted values
+            def inspect_figure(figure, path, **keywords):
+                """
+                Description:
+                - Capture the visible tick positions, the axis limits and the plotted bubble writes.
+
+                Input arguments:
+                   figure (Figure): Figure being saved.
+                   path (str): Output path.
+                   keywords (dict): Export settings.
+
+                Return:
+                    None
+                """
+                axis = figure.axes[2]
+                bottom, top = axis.get_ylim()
+                captured["ticks"] = [tick for tick in axis.get_yticks() if bottom <= tick <= top]
+                captured["limits"] = (bottom, top)
+                captured["bubble"] = axis.lines[0].get_ydata().tolist()
+
+            with self.subTest(largest=largest):
+                with patch("matplotlib.figure.Figure.savefig", autospec=True, side_effect=inspect_figure):
+                    plot_input_order(rows, self.folder)
+                self.assertEqual(captured["ticks"][:2], [0, 1])
+                self.assertGreaterEqual(max(captured["ticks"]), max(largest, 10))
+                self.assertEqual(captured["limits"][0], 0)
+                self.assertEqual(captured["bubble"][0], largest)
+                if largest in exact_ticks:
+                    self.assertEqual(captured["ticks"], exact_ticks[largest])
 
     def test_tiny_caption_includes_the_limit(self):
         """The tiny-input caption counts n = 20 as very small (instructor clarification U-14)."""
@@ -324,8 +516,59 @@ class TestCharts(unittest.TestCase):
 
         with patch("matplotlib.figure.Figure.savefig", autospec=True, side_effect=inspect_figure):
             plot_scaling(self.cases, self.folder)
-        self.assertIn("n ≤ 20", captured["scaling_tiny_runtime.png"])
-        self.assertNotIn("excludes", captured["scaling_tiny_runtime.png"])
+        text = captured["scaling_tiny_runtime.png"]
+        self.assertIn("Scaling Experiment: Very Small Inputs", text)
+        self.assertIn("Median income · random order · n ≤ 20", text)
+        self.assertIn("Each batch times 1,000 sorts; its average is the elapsed time ÷ 1,000.", text)
+        self.assertNotIn("excludes", text)
+        self.assertNotIn("instructor", text)
+        self.assertNotIn("Whiskers", text)
+        # Rows with different batch sizes get the general wording instead of one number.
+        mixed = copy.deepcopy(self.cases)
+        for row in mixed:
+            if row["experiment"] == "scaling" and row["input_size"] == 5:
+                row["sorts_per_batch"] = 500
+        with patch("matplotlib.figure.Figure.savefig", autospec=True, side_effect=inspect_figure):
+            plot_scaling(mixed, self.folder)
+        self.assertIn("Each batch average is the elapsed time ÷ the number of sorts in the batch.",
+                      captured["scaling_tiny_runtime.png"])
+
+    def test_no_chart_has_whiskers(self):
+        """All six charts draw plain markers and lines: no error-bar containers or whisker segments."""
+        from matplotlib.collections import LineCollection
+
+        captured = {}
+
+        # Function to record the error-bar artists of each chart
+        def inspect_figure(figure, path, **keywords):
+            """
+            Description:
+            - Count error-bar containers and line collections over all axes, and the tiny chart's lines.
+
+            Input arguments:
+               figure (Figure): Figure being saved.
+               path (str): Output path.
+               keywords (dict): Export settings.
+
+            Return:
+                None
+            """
+            captured[os.path.basename(path)] = (
+                sum(len(axis.containers) for axis in figure.axes),
+                sum(isinstance(item, LineCollection) for axis in figure.axes for item in axis.collections),
+                len(figure.axes[0].lines))
+
+        with patch("matplotlib.figure.Figure.savefig", autospec=True, side_effect=inspect_figure):
+            plot_scaling(self.cases, self.folder)
+            plot_input_order(self.cases, self.folder)
+            plot_repeated_values(self.cases, self.folder)
+            plot_growth(self.growth, self.folder)
+            plot_bubble_extrapolation(self.bubble_cases, self.estimate, self.fitted, self.folder)
+        self.assertEqual(len(captured), 6)
+        for name, (containers, whiskers, lines) in captured.items():
+            with self.subTest(chart=name):
+                self.assertEqual((containers, whiskers), (0, 0))
+        self.assertEqual(captured["scaling_tiny_runtime.png"][2], 3)
 
     def test_plots_do_not_modify_input_rows(self):
         """All plotting functions preserve their case, growth and model input records."""
@@ -413,6 +656,48 @@ class TestCharts(unittest.TestCase):
         self.assertEqual(captured["measured_sizes"], [250, 500, 1000, 2000, 4000])
         self.assertEqual(captured["prediction_size"], [20640.0])
         self.assertEqual(captured["prediction_label"], "Predicted, not measured")
+
+    def test_extrapolation_footer_does_not_overlap_the_axis(self):
+        """The caption is the runtime line, plus the non-positive warning when needed; it sits below the axes."""
+        negative_estimate = dict(self.estimate, a0=-0.05)
+        negative_estimate["estimate_s"] = -0.05 + 0.000002 * 20640 + 0.0000001 * 20640 ** 2
+        negative_fitted = [dict(row, fitted_s=-0.05 + 0.000002 * row["input_size"]
+                                + 0.0000001 * row["input_size"] ** 2) for row in self.fitted]
+        captured = []
+
+        # Function to measure the footer and the lower panel after drawing
+        def inspect_figure(figure, path, **keywords):
+            """
+            Description:
+            - Draw the figure, then record the footer text, its top edge and the lower panel's bottom edge.
+
+            Input arguments:
+               figure (Figure): Extrapolation figure.
+               path (str): Export path.
+               keywords (dict): Export settings.
+
+            Return:
+                None
+            """
+            figure.set_dpi(keywords.get("dpi", 100))
+            figure.canvas.draw()
+            renderer = figure.canvas.get_renderer()
+            # Figure-level text other than the title is the caption.
+            captions = [text for text in figure.texts if text is not figure._suptitle]
+            lowest = min(axis.get_tightbbox(renderer).y0 for axis in figure.axes)
+            captured.append(([text.get_text() for text in captions],
+                             [text.get_window_extent(renderer).y1 for text in captions], lowest))
+
+        with patch("matplotlib.figure.Figure.savefig", autospec=True, side_effect=inspect_figure):
+            plot_bubble_extrapolation(self.bubble_cases, self.estimate, self.fitted, self.folder)
+            plot_bubble_extrapolation(self.bubble_cases, negative_estimate, negative_fitted, self.folder)
+        runtime_line = "Measured runtime: median of batch averages."
+        self.assertEqual(captured[0][0], [runtime_line])
+        self.assertEqual(len(captured[1][0]), 1)
+        self.assertTrue(captured[1][0][0].startswith(runtime_line + "\nWarning"))
+        for texts, tops, lowest in captured:
+            with self.subTest(warning="Warning" in texts[0]):
+                self.assertLess(tops[0], lowest)
 
 
 if __name__ == "__main__":

@@ -1,6 +1,6 @@
 """
 Description:
-- Charts of the experiment results. The only module that uses matplotlib.
+- Charts and result tables of the experiment results. The only module that uses matplotlib.
 - matplotlib is optional: it is imported inside the functions, never at module level.
 - Spec: ARCHITECTURE.md F-PLT-1 - F-PLT-4.
 """
@@ -21,15 +21,27 @@ ALGORITHM_STYLES = {
     "merge": ("Merge Sort", "#009E73", "^", "-."),
 }
 # Field, panel title and axis label of each summary panel.
-METRICS = (("median_s", "Median runtime", "Median runtime (s per sort)"),
-           ("comparisons", "Comparisons", "Comparisons per sort"),
-           ("writes", "Element writes", "Element writes per sort"))
+METRICS = (("median_s", "Median runtime", "Median runtime (s)"),
+           ("comparisons", "Comparisons", "Comparisons"),
+           ("writes", "Element writes", "Element writes"))
 # Input orders appear in the same sequence in every chart.
 ORDER_LABELS = {"random": "Random", "sorted": "Already\nsorted",
                 "reversed": "Reverse\nsorted", "nearly": "Nearly\nsorted"}
 # Readable labels for the required dataset columns.
 COLUMN_LABELS = {"median_income": "Median\nincome", "housing_median_age": "Housing\nmedian age",
                  "median_house_value": "Median\nhouse value"}
+# Caption line explaining every plotted or tabulated runtime.
+RUNTIME_NOTE = "Measured runtime: median of batch averages."
+# Heading, summary focus and file prefix of each experiment.
+EXPERIMENT_NAMES = {"scaling": ("Scaling Experiment", "Performance by Input Size", "scaling"),
+                    "order": ("Input-Order Experiment", "Effect of Input Arrangement", "input_order"),
+                    "dupes": ("Repeated-Values Experiment", "Comparison Across Columns", "repeated_values")}
+# Column headings of the result tables, after the category column.
+TABLE_HEADINGS = ("Algorithm", "Comparisons", "Writes", "Swaps", "Median runtime")
+# Category column heading of each result table.
+TABLE_CATEGORY_HEADINGS = {"scaling": "Input size, n", "order": "Input order", "dupes": "Column"}
+# Column widths (fractions of the table width); the second set fits the longer column names.
+TABLE_WIDTHS = ((0.17, 0.17, 0.17, 0.15, 0.13, 0.21), (0.23, 0.16, 0.16, 0.14, 0.12, 0.19))
 # PNG resolution for report and slide exports.
 EXPORT_DPI = 300
 
@@ -115,6 +127,120 @@ def plot_repeated_values(cases, output_folder):
         return []
     rows = _experiment_rows(cases, "dupes")
     return [_summary_chart(rows, "dupes", output_folder)] if rows else []
+
+
+# Function to draw one result table per experiment
+def plot_result_tables(cases, output_folder):
+    """
+    Description:
+    - Comparisons, writes, swaps and median runtime of every case, one table figure per experiment.
+
+    Input arguments:
+       cases (list[dict]): Case rows from case_row or read_cases.
+       output_folder (str): Folder for the PNG files.
+
+    Return:
+        list[str]: paths of the files written (raises ValueError for inconsistent or invalid cases).
+    """
+    if not matplotlib_available():
+        return []
+    paths = []
+    for experiment in ("scaling", "order", "dupes"):
+        rows = _experiment_rows(cases, experiment)
+        if rows:
+            paths.append(_result_table(rows, experiment, output_folder))
+    return paths
+
+
+# Function to format a runtime with a readable unit
+def _format_seconds(seconds):
+    """
+    Description:
+    - Below 1,000 s: three significant figures in µs, ms or s, whichever keeps the number below 1,000.
+    - From 1,000 s: whole seconds with thousands separators.
+
+    Input arguments:
+       seconds (float): Positive runtime in seconds.
+
+    Return:
+        str: e.g. 0.0000118 -> '11.8 µs', 0.00383 -> '3.83 ms', 1.116 -> '1.12 s', 1234.5 -> '1,234 s'.
+    """
+    units = (("µs", 0.000001), ("ms", 0.001), ("s", 1.0))
+    for index, (unit, size) in enumerate(units):
+        # '#' keeps trailing zeros (20.0, not 20); a bare trailing point (272.) is dropped.
+        text = format(seconds / size, "#.3g").rstrip(".")
+        # Move to the next unit when rounding reaches 1,000 (e.g. 999.96 µs).
+        if float(text) < 1000:
+            return text + " " + unit
+        if index == len(units) - 1:
+            return format(seconds, ",.0f") + " s"
+
+
+# Function to draw the result table of one experiment
+def _result_table(rows, experiment, output_folder):
+    """
+    Description:
+    - One row per case, grouped by category (size, input order or column) in the summary-chart order.
+
+    Input arguments:
+       rows (list[dict]): Validated rows of one experiment.
+       experiment (str): 'scaling', 'order' or 'dupes'.
+       output_folder (str): PNG destination.
+
+    Return:
+        str: Written table path.
+    """
+    categories, category_field, context = _experiment_layout(rows, experiment)
+    name, focus, prefix = EXPERIMENT_NAMES[experiment]
+    lookup = {(row["algorithm"], row[category_field]): row for row in rows}
+    labels = ORDER_LABELS if experiment == "order" else COLUMN_LABELS
+    body = []
+    shading = []
+    missing = 0
+    for category_index, category in enumerate(categories):
+        first = True
+        for algorithm, style in ALGORITHM_STYLES.items():
+            row = lookup.get((algorithm, category))
+            if row is None:
+                missing += 1
+                continue
+            # The category is written once, on the first row of its group.
+            category_text = format(category, ",") if experiment == "scaling" else \
+                labels.get(category, category).replace("\n", " ")
+            swaps = "n/a" if row["swaps"] is None else format(int(row["swaps"]), ",")
+            body.append([category_text if first else "", style[0], format(int(row["comparisons"]), ","),
+                         format(int(row["writes"]), ","), swaps, _format_seconds(float(row["median_s"]))])
+            shading.append("#F4F6F8" if category_index % 2 == 0 else "white")
+            first = False
+    height = 1.6 + 0.27 * (len(body) + 1)
+    figure, axes = _new_figure(1, height)
+    axis = axes[0]
+    axis.axis("off")
+    # Title, subtitle and caption keep fixed distances in inches from the figure edges.
+    figure.subplots_adjust(left=0.04, right=0.96, top=1 - 1.0 / height, bottom=0.7 / height)
+    figure.suptitle(name + ": Results Table", y=1 - 0.2 / height, fontsize=14, fontweight="bold")
+    figure.text(0.5, 1 - 0.62 / height, context, ha="center", fontsize=11, color="#465365")
+    table = axis.table(cellText=body, colLabels=[TABLE_CATEGORY_HEADINGS[experiment]] + list(TABLE_HEADINGS),
+                       colWidths=TABLE_WIDTHS[experiment == "dupes"], bbox=[0, 0, 1, 1])
+    table.auto_set_font_size(False)
+    table.set_fontsize(9)
+    for (row_index, column_index), cell in table.get_celld().items():
+        cell.set_edgecolor("#D0D5DB")
+        cell.set_linewidth(0.5)
+        # Text columns are left-aligned, numbers right-aligned.
+        cell.get_text().set_horizontalalignment("left" if column_index < 2 else "right")
+        cell.PAD = 0.04
+        if row_index == 0:
+            cell.set_facecolor("#E3E7EC")
+            cell.get_text().set_fontweight("bold")
+            cell.get_text().set_horizontalalignment("center")
+        else:
+            cell.set_facecolor(shading[row_index - 1])
+    note = RUNTIME_NOTE + "\nSwaps: not applicable to merge sort."
+    if missing:
+        note += " Missing cases: " + str(missing) + "."
+    figure.text(0.04, 0.12 / height, note, fontsize=9, color="#465365", va="bottom")
+    return _save_figure(figure, output_folder, prefix + "_table.png")
 
 
 # Function to validate a numeric plotting value
@@ -245,6 +371,11 @@ def _save_figure(figure, output_folder, filename):
         font_family = "DejaVu Sans"
     for artist in figure.findobj(match=Text):
         artist.set_fontfamily(font_family)
+    # Table cell text is not reached by findobj, so it is set separately.
+    for axis in figure.axes:
+        for table in axis.tables:
+            for cell in table.get_celld().values():
+                cell.get_text().set_fontfamily(font_family)
     try:
         os.makedirs(output_folder, exist_ok=True)
         path = os.path.join(output_folder, filename)
@@ -254,12 +385,43 @@ def _save_figure(figure, output_folder, filename):
         figure.clear()
 
 
+# Function to choose the categories and subtitle of one experiment
+def _experiment_layout(rows, experiment):
+    """
+    Description:
+    - Shared by the summary charts and the result tables.
+
+    Input arguments:
+       rows (list[dict]): Validated rows of one experiment.
+       experiment (str): 'scaling', 'order' or 'dupes'.
+
+    Return:
+        tuple: (categories in display order, row field holding the category, subtitle),
+         e.g. ([5, 10, 20], 'input_size', 'Median income · random order').
+    """
+    column_label = COLUMN_LABELS.get(rows[0]["column"], rows[0]["column"]).replace("\n", " ")
+    sample_size = "n = " + format(rows[0]["input_size"], ",")
+    if experiment == "scaling":
+        # Metadata sizes are ordered with the project's own Merge Sort, not sorted().
+        categories = ALGORITHMS["merge"][0](list({row["input_size"] for row in rows}))
+        return categories, "input_size", column_label + " · random order"
+    if experiment == "order":
+        return list(ORDER_LABELS), "order", column_label + " · " + sample_size
+    categories = list(DEFAULT_SELECTED_COLUMNS)
+    for row in rows:
+        if row["column"] not in categories:
+            categories.append(row["column"])
+    return categories, "column", "Same sampled rows and row order · " + sample_size
+
+
 # Function to draw a shared three-panel experiment summary
 def _summary_chart(rows, experiment, output_folder):
     """
     Description:
     - Draw runtime, comparisons and writes using consistent algorithm styles.
     - Scaling uses measured-size lines; categorical experiments use unconnected grouped dots.
+    - Runtime uses a log axis; writes use a symmetric log axis (linear from 0 to 1), so true zeros
+      and small counts stay visible beside counts in the millions.
 
     Input arguments:
        rows (list[dict]): Validated rows of one experiment.
@@ -270,33 +432,17 @@ def _summary_chart(rows, experiment, output_folder):
         str: Written summary path.
     """
     from matplotlib.lines import Line2D
+    from matplotlib.ticker import FixedLocator, FuncFormatter, LogLocator, NullLocator
 
-    if experiment == "scaling":
-        # Metadata sizes are ordered with the project's own Merge Sort, not sorted().
-        categories = ALGORITHMS["merge"][0](list({row["input_size"] for row in rows}))
-        category_field = "input_size"
-        title = "Scaling performance — " + rows[0]["column"]
-        filename = "scaling_summary.png"
-    elif experiment == "order":
-        categories = list(ORDER_LABELS)
-        category_field = "order"
-        title = "Effect of input order — " + rows[0]["column"]
-        filename = "input_order_summary.png"
-    else:
-        categories = list(DEFAULT_SELECTED_COLUMNS)
-        for row in rows:
-            if row["column"] not in categories:
-                categories.append(row["column"])
-        category_field = "column"
-        title = "Results across dataset columns"
-        filename = "repeated_values_summary.png"
+    categories, category_field, context = _experiment_layout(rows, experiment)
+    name, focus, prefix = EXPERIMENT_NAMES[experiment]
+    title = name + ": " + focus
+    filename = prefix + "_summary.png"
     lookup = {(row["algorithm"], row[category_field]): row for row in rows}
     missing = len(ALGORITHM_STYLES) * len(categories) - len(lookup)
     figure, axes = _new_figure(3, 8.0)
-    figure.subplots_adjust(left=0.17, right=0.97, bottom=0.15 if experiment == "scaling" else 0.11, top=0.83,
-                           hspace=0.80)
+    figure.subplots_adjust(left=0.17, right=0.97, top=0.83, hspace=0.80)
     figure.suptitle(title, y=0.98, fontsize=14, fontweight="bold")
-    context = "Random order" if experiment == "scaling" else "n = " + format(rows[0]["input_size"], ",")
     figure.text(0.5, 0.935, context, ha="center", fontsize=11, color="#465365")
     handles = [Line2D([], [], color=style[1], marker=style[2], linestyle="None", label=style[0])
                for style in ALGORITHM_STYLES.values()]
@@ -305,8 +451,16 @@ def _summary_chart(rows, experiment, output_folder):
     for axis, (field, panel_title, ylabel) in zip(axes, METRICS):
         all_values = [float(row[field]) for row in rows]
         positive_values = [value for value in all_values if value > 0]
-        logarithmic = field != "writes" and len(positive_values) == len(all_values) and (
-            experiment == "scaling" or max(positive_values) / min(positive_values) >= 100)
+        # Timings are validated positive; comparisons use log only when every count is positive and varies widely.
+        if field == "median_s":
+            scale = "log"
+        elif field == "writes":
+            scale = "symlog"
+        elif len(positive_values) == len(all_values) and (
+                experiment == "scaling" or max(positive_values) / min(positive_values) >= 100):
+            scale = "log"
+        else:
+            scale = "linear"
         for algorithm_index, (algorithm, style) in enumerate(ALGORITHM_STYLES.items()):
             label, color, marker, line_style = style
             points = [lookup.get((algorithm, category)) for category in categories]
@@ -315,20 +469,27 @@ def _summary_chart(rows, experiment, output_folder):
             positions = categories if experiment == "scaling" else [
                 category_index + (algorithm_index - 1) * 0.18 for category_index in range(len(categories))]
             values = [float(point[field]) if point is not None else math.nan for point in points]
-            if field == "median_s":
-                lower = [float(point["median_s"]) - float(point["min_s"]) if point is not None else math.nan
-                         for point in points]
-                upper = [float(point["max_s"]) - float(point["median_s"]) if point is not None else math.nan
-                         for point in points]
-                axis.errorbar(positions, values, yerr=[lower, upper], marker=marker, color=color,
-                              linestyle=line_style if experiment == "scaling" else "None",
-                              linewidth=1.4, markersize=5, capsize=2, label=label)
-            else:
-                axis.plot(positions, values, marker=marker, color=color,
-                          linestyle=line_style if experiment == "scaling" else "None",
-                          linewidth=1.4, markersize=5, label=label, clip_on=False)
-        if logarithmic:
+            axis.plot(positions, values, marker=marker, color=color,
+                      linestyle=line_style if experiment == "scaling" else "None",
+                      linewidth=1.4, markersize=5, label=label, clip_on=False)
+        if scale == "log":
             axis.set_yscale("log")
+            # Label every decade, not only every third.
+            axis.yaxis.set_major_locator(LogLocator(base=10, numticks=12))
+        elif scale == "symlog":
+            axis.set_yscale("symlog", base=10, linthresh=1, linscale=1)
+            # The axis reaches the first power of ten above the largest count, at least 10 (also for all zeros).
+            largest = max(all_values)
+            top_power = max(1, math.ceil(math.log10(largest))) if largest > 1 else 1
+            axis.set_ylim(0, 10 ** top_power * 1.3)
+            # Ticks at 0, 1 and powers of ten counted down from the top; every second power above 10^4.
+            step = 2 if top_power > 4 else 1
+            powers = [power for power in range(top_power, 0, -step)]
+            axis.yaxis.set_major_locator(FixedLocator([0, 1] + [10 ** power for power in powers]))
+            axis.yaxis.set_major_formatter(FuncFormatter(
+                lambda value, position: "0" if value == 0 else "1" if value == 1
+                else "$\\mathdefault{10^{" + str(round(math.log10(value))) + "}}$"))
+            axis.yaxis.set_minor_locator(NullLocator())
         else:
             axis.set_ylim(bottom=0)
             axis.ticklabel_format(axis="y", style="sci", scilimits=(-3, 4), useMathText=True)
@@ -342,11 +503,15 @@ def _summary_chart(rows, experiment, output_folder):
                                                     for category in categories])
             axis.set_xlim(-0.55, len(categories) - 0.45)
         axis.set_title(panel_title, loc="left", fontsize=12, fontweight="bold", pad=8)
-        axis.set_ylabel(ylabel + ("\n(log scale)" if logarithmic else ""), fontsize=11)
-    note = "Runtime: median with observed min–max range; not a confidence interval."
+        axis.set_ylabel(ylabel + {"log": "\n(log scale)", "symlog": "\n(symlog scale)", "linear": ""}[scale],
+                        fontsize=11)
+    note = RUNTIME_NOTE
+    note += "\nWrites: symmetric log scale, linear from 0 to 1, so zero writes remain visible."
     if missing:
         note += "\nMissing cases: " + str(missing) + "; shown as gaps, never zeros."
     note = "\n".join(textwrap.fill(line, width=82) for line in note.splitlines())
+    # Leave room below the x-axis labels for every caption line.
+    figure.subplots_adjust(bottom=(0.15 if experiment == "scaling" else 0.11) + 0.021 * note.count("\n"))
     figure.text(0.17, 0.025, note, fontsize=9, color="#465365", va="bottom")
     return _save_figure(figure, output_folder, filename)
 
@@ -355,7 +520,7 @@ def _summary_chart(rows, experiment, output_folder):
 def _tiny_chart(rows, output_folder):
     """
     Description:
-    - Draw individual measured sizes on linear axes, retaining min–max timing ranges.
+    - Draw the median runtime of each measured size on linear axes.
     - Convert seconds to microseconds for display only; batch repetitions are not divided again.
 
     Input arguments:
@@ -369,27 +534,31 @@ def _tiny_chart(rows, output_folder):
     lookup = {(row["algorithm"], row["input_size"]): row for row in rows}
     figure, axes = _new_figure(1, 4.6)
     axis = axes[0]
-    figure.subplots_adjust(left=0.16, right=0.97, bottom=0.23, top=0.79)
-    figure.suptitle("Very small inputs — " + rows[0]["column"], y=0.98, fontsize=14, fontweight="bold")
+    figure.subplots_adjust(left=0.16, right=0.97, bottom=0.31, top=0.73)
+    figure.suptitle(EXPERIMENT_NAMES["scaling"][0] + ": Very Small Inputs", y=0.98, fontsize=14, fontweight="bold")
+    context = _experiment_layout(rows, "scaling")[2] + " · n ≤ " + str(DEFAULT_SMALL_INPUT_LIMIT)
+    figure.text(0.5, 0.895, context, ha="center", fontsize=11, color="#465365")
     for algorithm, (label, color, marker, line_style) in ALGORITHM_STYLES.items():
         points = [lookup.get((algorithm, size)) for size in sizes]
         if not any(point is not None for point in points):
             continue
         medians = [float(point["median_s"]) * 1_000_000 if point is not None else math.nan for point in points]
-        lower = [(float(point["median_s"]) - float(point["min_s"])) * 1_000_000
-                 if point is not None else math.nan for point in points]
-        upper = [(float(point["max_s"]) - float(point["median_s"])) * 1_000_000
-                 if point is not None else math.nan for point in points]
-        axis.errorbar(sizes, medians, yerr=[lower, upper], label=label, color=color, marker=marker,
-                      linestyle=line_style, capsize=3, linewidth=1.4, markersize=6)
+        axis.plot(sizes, medians, label=label, color=color, marker=marker, linestyle=line_style,
+                  linewidth=1.4, markersize=6)
     axis.set_xticks(sizes)
     axis.set_ylim(bottom=0)
     axis.set_xlabel("Input size, n", fontsize=11)
-    axis.set_ylabel("Median runtime (µs per sort)", fontsize=11)
+    axis.set_ylabel("Median runtime (µs)", fontsize=11)
     axis.legend(loc="lower center", bbox_to_anchor=(0.5, 1.02), ncol=3, frameon=False, fontsize=10)
-    figure.text(0.16, 0.06, "Whiskers: observed min–max range. 1 µs = 0.000001 s.\n"
-                "Very small inputs: n ≤ " + str(DEFAULT_SMALL_INPUT_LIMIT) + ", as confirmed by the instructor.",
-                fontsize=9, color="#465365")
+    # Batch sizes come from the rows, so the caption matches the data even if the settings change.
+    batch_sizes = {int(row["sorts_per_batch"]) for row in rows}
+    if len(batch_sizes) == 1:
+        batch = format(batch_sizes.pop(), ",")
+        batching = "Each batch times " + batch + " sorts; its average is the elapsed time ÷ " + batch + "."
+    else:
+        batching = "Each batch average is the elapsed time ÷ the number of sorts in the batch."
+    figure.text(0.16, 0.025, RUNTIME_NOTE + "\n" + batching + "\n1 µs = 0.000001 s.", fontsize=9,
+                color="#465365", va="bottom")
     return _save_figure(figure, output_folder, "scaling_tiny_runtime.png")
 
 
@@ -518,13 +687,13 @@ def plot_bubble_extrapolation(cases, estimate_row, fitted_rows, output_folder):
         raise ValueError("Quadratic curve contains non-finite values")
     color = ALGORITHM_STYLES["bubble"][1]
     figure, axes = _new_figure(2, 7.3)
-    figure.subplots_adjust(left=0.16, right=0.97, bottom=0.14, top=0.87, hspace=0.65)
+    figure.subplots_adjust(left=0.16, right=0.97, top=0.87, hspace=0.65)
     figure.suptitle("Bubble Sort — measured fit and extrapolation", y=0.98, fontsize=14, fontweight="bold")
     for axis in axes:
         axis.plot(sizes, measured_times, color=color, marker="o", linestyle="None", label="Measured median")
         axis.plot(fitted_x, fitted_y, color=color, linestyle="-", linewidth=1.5, label="Quadratic fit")
         axis.set_xlabel("Input size, n", fontsize=11)
-        axis.set_ylabel("Runtime (s per sort)", fontsize=11)
+        axis.set_ylabel("Runtime (s)", fontsize=11)
         axis.ticklabel_format(axis="y", style="sci", scilimits=(-3, 4), useMathText=True)
     axes[0].set_title("Measured range — view of model fit", loc="left", fontsize=12, fontweight="bold")
     axes[0].set_xlim(0, sizes[-1] * 1.06)
@@ -537,7 +706,9 @@ def plot_bubble_extrapolation(cases, estimate_row, fitted_rows, output_folder):
                  label="Predicted, not measured")
     axes[1].annotate("Predicted at n = " + format(int(target), ",") + ": " + format(prediction, ".4g") + " s",
                      xy=(target, prediction), xytext=(-8, -25), textcoords="offset points",
-                     ha="right", fontsize=10)
+                     ha="right", fontsize=10,
+                     # White background keeps the label readable where the curve passes behind it.
+                     bbox={"boxstyle": "round,pad=0.2", "facecolor": "white", "edgecolor": "none"})
     axes[1].set_title("Full range — shaded area is extrapolation", loc="left", fontsize=12, fontweight="bold")
     axes[1].set_xlim(0, target * 1.06)
     axes[1].set_xticks([target * step / 4 for step in range(5)])
@@ -545,10 +716,12 @@ def plot_bubble_extrapolation(cases, estimate_row, fitted_rows, output_folder):
     for axis, curve_values in ((axes[0], fitted_y), (axes[1], fitted_y + extrapolated_y)):
         if min(curve_values) >= 0 and prediction >= 0:
             axis.set_ylim(bottom=0)
-    note = "Dashed curve and X marker are predictions, not additional timing measurements.\n"
-    note += "The model is extended beyond the largest fitted input; prediction accuracy is not established."
+    # The runtime line, plus a warning when the model gives non-positive runtimes.
+    note = RUNTIME_NOTE
     if min(fitted_y + extrapolated_y + [prediction]) <= 0:
         note += "\nWarning: the model includes non-positive runtimes, which are not physically meaningful."
     note = "\n".join(textwrap.fill(line, width=84) for line in note.splitlines())
+    # Each caption line takes about 0.021 of the figure height.
+    figure.subplots_adjust(bottom=0.10 + 0.021 * (note.count("\n") + 1))
     figure.text(0.16, 0.025, note, fontsize=9, color="#465365", va="bottom")
     return [_save_figure(figure, output_folder, "bubble_extrapolation.png")]
