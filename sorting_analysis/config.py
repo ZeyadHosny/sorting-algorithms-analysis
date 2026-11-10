@@ -2,19 +2,18 @@
 Description:
 - Central settings of a run: every path, column, seed, size and timing value.
 - Values only: the code that uses them lives in the feature modules.
-- Spec: ARCHITECTURE.md F-CFG-1.
 """
 
 # Dataset path, relative to the repository root.
 DEFAULT_CSV_PATH = "housing.csv"
 # Folder of the official outputs.
 DEFAULT_RESULTS_FOLDER = "results"
-# The three numeric columns the PDF requires.
+# The three numeric columns used by the experiments.
 DEFAULT_SELECTED_COLUMNS = ("median_income", "housing_median_age", "median_house_value")
-# Column of the scaling experiment (PDF 4.2: median_income, little duplication).
+# Column of the scaling experiment (many distinct values, little duplication).
 DEFAULT_SCALING_COLUMN = "median_income"
-# Column of the input-order experiment (PDF 4.3: median_income); must be one of the selected columns,
-# so the repeated-values experiment repeats this exact input.
+# Column of the input-order experiment; must be one of the selected columns, so the
+# repeated-values experiment repeats this exact input.
 DEFAULT_ORDER_COLUMN = "median_income"
 # Seed for drawing sample row indices.
 DEFAULT_SAMPLE_SEED = 42
@@ -28,7 +27,7 @@ DEFAULT_SCALING_SIZES = (5, 10, 20, 250, 500, 1000, 2000, 4000)
 DEFAULT_ORDER_SAMPLE_SIZE = 2000
 # Timed batches per case; their median is reported.
 DEFAULT_TIMED_BATCHES = 5
-# Inputs up to this size are "very small" (5, 10 and 20, as confirmed by the instructor).
+# Inputs up to this size (5, 10 and 20) are very small and are timed in batches of many sorts.
 DEFAULT_SMALL_INPUT_LIMIT = 20
 # Sorts per timed batch for very small inputs.
 DEFAULT_SMALL_INPUT_REPETITIONS = 1000
@@ -36,7 +35,7 @@ DEFAULT_SMALL_INPUT_REPETITIONS = 1000
 DEFAULT_NORMAL_INPUT_REPETITIONS = 1
 # Full dataset size for the bubble sort estimate.
 DEFAULT_EXTRAPOLATION_TARGET_SIZE = 20640
-# Measured sizes the quadratic curve is fitted to (instructor's choice).
+# Measured sizes the quadratic curve is fitted to.
 DEFAULT_EXTRAPOLATION_BASE_SIZES = (250, 500, 1000, 2000, 4000)
 
 

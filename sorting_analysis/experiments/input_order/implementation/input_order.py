@@ -1,7 +1,6 @@
 """
 Description:
 - Input-order experiment: all three algorithms on random, sorted, reversed and nearly sorted input.
-- Spec: ARCHITECTURE.md F-IOR-1 - F-IOR-3.
 """
 
 from sorting_analysis.config import DEFAULT_SETTINGS
@@ -25,7 +24,8 @@ def run_input_order(rows, usable_indices, settings=DEFAULT_SETTINGS):
        settings (Settings): Run settings (seeds, sizes, columns, timing).
 
     Return:
-        list[CaseResult]: 12 cases, 3 algorithms x 4 orders (raises ValueError if order_sample_size exceeds the usable rows; VerificationError from benchmark)
+        list[CaseResult]: 12 cases, 3 algorithms x 4 orders (raises ValueError if order_sample_size
+        exceeds the usable rows; VerificationError from benchmark)
     """
     sampled_indices = sample_indices(usable_indices, settings.order_sample_size, settings.sample_seed)
     shuffled_indices = shuffle_indices(sampled_indices, settings.shuffle_seed)

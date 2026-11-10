@@ -1,4 +1,4 @@
-"""Charts and result tables of the results."""
+"""Charts and result tables of the experiment results."""
 
 from .implementation.charts import (matplotlib_available, plot_bubble_extrapolation, plot_growth,
                                     plot_input_order, plot_repeated_values, plot_result_tables, plot_scaling)

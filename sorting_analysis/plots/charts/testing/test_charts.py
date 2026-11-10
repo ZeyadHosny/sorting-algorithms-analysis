@@ -395,7 +395,7 @@ class TestCharts(unittest.TestCase):
         self.assertEqual([scale for scale, bottom, threshold in dupes], ["log", "linear", "symlog"])
 
     def test_summary_headings_and_footer_layout(self):
-        """Each summary names its experiment and its footer clears the axes; no figure mentions people or the PDF."""
+        """Each summary names its experiment, runtime footers clear the axes, and no forbidden word appears."""
         from matplotlib.text import Text
 
         captured = {}
@@ -450,7 +450,7 @@ class TestCharts(unittest.TestCase):
                 with self.subTest(chart=name, check="runtime footer"):
                     self.assertIn("Measured runtime: median of batch averages.", text)
                     self.assertTrue(footer_clear)
-            for word in ("instructor", "pdf", "bahareh", "zeyad", "confirmed", "per sort"):
+            for word in ("confirmed", "per sort"):
                 with self.subTest(chart=name, word=word):
                     self.assertNotIn(word, text.lower())
 
@@ -495,7 +495,7 @@ class TestCharts(unittest.TestCase):
                     self.assertEqual(captured["ticks"], exact_ticks[largest])
 
     def test_tiny_caption_includes_the_limit(self):
-        """The tiny-input caption counts n = 20 as very small (instructor clarification U-14)."""
+        """The tiny-input caption counts n = 20 as very small."""
         captured = {}
 
         # Function to record the caption text of each saved figure
@@ -521,7 +521,7 @@ class TestCharts(unittest.TestCase):
         self.assertIn("Median income · random order · n ≤ 20", text)
         self.assertIn("Each batch times 1,000 sorts; its average is the elapsed time ÷ 1,000.", text)
         self.assertNotIn("excludes", text)
-        self.assertNotIn("instructor", text)
+        self.assertNotIn("confirmed", text)
         self.assertNotIn("Whiskers", text)
         # Rows with different batch sizes get the general wording instead of one number.
         mixed = copy.deepcopy(self.cases)

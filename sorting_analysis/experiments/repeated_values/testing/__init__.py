@@ -1,1 +1,1 @@
-"""Unit tests of the repeated values feature."""
+"""Unit tests of the repeated-values feature."""

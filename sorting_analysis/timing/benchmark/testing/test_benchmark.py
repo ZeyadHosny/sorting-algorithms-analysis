@@ -85,7 +85,7 @@ class FakeSorts:
     """
     Description:
     - A plain and a counted sort that record each call (clock and garbage-collection state) and can be
-      told to fail on purpose. Correct outputs come from our merge_sort.
+      told to fail on purpose. Correct outputs come from merge_sort.
 
     Attributes:
         __clock (FakeClock or None): PRIVATE. Clock to read during each call, or None.

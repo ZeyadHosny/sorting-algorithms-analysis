@@ -5,8 +5,7 @@ from unittest.mock import patch
 
 from sorting_analysis.data import ascending, descending, make_orders, nearly_sorted
 
-# Unit tests supply fixed merge-sort outputs to check Orders independently.
-# The integration test below uses the real implementation when available.
+# The unit tests replace merge_sort with fixed outputs; TestOrdersIntegration uses the real one.
 class TestOrders(unittest.TestCase):
     """The four input orders."""
 
@@ -150,9 +149,9 @@ class TestOrdersEdgeCases(unittest.TestCase):
 
 
 class TestOrdersIntegration(unittest.TestCase):
-    """Connect Orders to the actual merge sort without a substitute."""
+    """The input orders built with the real merge sort."""
 
-    # Check the completed Orders and Merge Sort modules together
+    # Check the orders with the real merge sort
     def test_orders_with_real_merge_sort(self):
         """Real merge sort produces correct orders: [3, 1, 2] -> [1, 2, 3], and every order holds the same values."""
         self.assertEqual(ascending([3, 1, 2]), [1, 2, 3])

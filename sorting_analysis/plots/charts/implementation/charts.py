@@ -2,7 +2,6 @@
 Description:
 - Charts and result tables of the experiment results. The only module that uses matplotlib.
 - matplotlib is optional: it is imported inside the functions, never at module level.
-- Spec: ARCHITECTURE.md F-PLT-1 - F-PLT-4.
 """
 
 
@@ -27,7 +26,7 @@ METRICS = (("median_s", "Median runtime", "Median runtime (s)"),
 # Input orders appear in the same sequence in every chart.
 ORDER_LABELS = {"random": "Random", "sorted": "Already\nsorted",
                 "reversed": "Reverse\nsorted", "nearly": "Nearly\nsorted"}
-# Readable labels for the required dataset columns.
+# Readable labels for the selected dataset columns.
 COLUMN_LABELS = {"median_income": "Median\nincome", "housing_median_age": "Housing\nmedian age",
                  "median_house_value": "Median\nhouse value"}
 # Caption line explaining every plotted or tabulated runtime.
@@ -42,7 +41,7 @@ TABLE_HEADINGS = ("Algorithm", "Comparisons", "Writes", "Swaps", "Median runtime
 TABLE_CATEGORY_HEADINGS = {"scaling": "Input size, n", "order": "Input order", "dupes": "Column"}
 # Column widths (fractions of the table width); the second set fits the longer column names.
 TABLE_WIDTHS = ((0.17, 0.17, 0.17, 0.15, 0.13, 0.21), (0.23, 0.16, 0.16, 0.14, 0.12, 0.19))
-# PNG resolution for report and slide exports.
+# PNG resolution in dots per inch.
 EXPORT_DPI = 300
 
 
@@ -402,7 +401,7 @@ def _experiment_layout(rows, experiment):
     column_label = COLUMN_LABELS.get(rows[0]["column"], rows[0]["column"]).replace("\n", " ")
     sample_size = "n = " + format(rows[0]["input_size"], ",")
     if experiment == "scaling":
-        # Metadata sizes are ordered with the project's own Merge Sort, not sorted().
+        # Sizes are ordered with merge sort, not sorted().
         categories = ALGORITHMS["merge"][0](list({row["input_size"] for row in rows}))
         return categories, "input_size", column_label + " · random order"
     if experiment == "order":
@@ -567,7 +566,7 @@ def plot_growth(growth_rows, output_folder):
     """
     Description:
     - Show observed and theoretical factors separately for every supplied doubling pair.
-    - Use the prepared growth rows; do not recompute or rerun the timing experiments.
+    - The growth rows are drawn as given; nothing is recomputed.
 
     Input arguments:
        growth_rows (list[dict]): Typed rows returned by growth_factors or read from growth.csv.
@@ -630,7 +629,7 @@ def plot_bubble_extrapolation(cases, estimate_row, fitted_rows, output_folder):
     Description:
     - Show measured Bubble Sort scaling points and the supplied quadratic model in two panels.
     - The left panel covers the fitted sizes; the right includes the explicitly labelled prediction.
-    - Do not fit another model or time the full dataset here.
+    - The model is drawn as given, never refitted.
 
     Input arguments:
        cases (list[dict]): Typed case rows, used for the measured Bubble Sort base sizes only.

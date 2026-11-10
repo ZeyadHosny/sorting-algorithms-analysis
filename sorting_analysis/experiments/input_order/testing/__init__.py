@@ -1,1 +1,1 @@
-"""Unit tests of the input order feature."""
+"""Unit tests of the input-order feature."""

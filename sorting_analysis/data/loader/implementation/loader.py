@@ -1,7 +1,7 @@
 """
 Description:
 - Reads the dataset CSV with csv.DictReader and converts selected values to floats.
-- Standard library only. Spec: ARCHITECTURE.md F-LOAD-1 - F-LOAD-5.
+- Standard library only.
 """
 
 import csv

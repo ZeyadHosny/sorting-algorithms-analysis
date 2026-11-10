@@ -1,6 +1,6 @@
 """
 Description:
-- Row filters shared by the analysis features. Spec: ARCHITECTURE.md F-FLT-1.
+- Row filters shared by the analysis features.
 """
 
 

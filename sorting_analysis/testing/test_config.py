@@ -1,4 +1,4 @@
-"""Unit tests for config: the agreed default values and overriding them."""
+"""Unit tests for config: the default values and overriding them."""
 import unittest
 
 from sorting_analysis.config import DEFAULT_SETTINGS, Settings
@@ -7,8 +7,8 @@ from sorting_analysis.config import DEFAULT_SETTINGS, Settings
 class TestSettings(unittest.TestCase):
     """Default values and overriding them."""
 
-    def test_defaults_match_the_agreed_settings(self):
-        """Seeds 42/43/44, the eight scaling sizes, sample size 2000, 5 timed batches, five fitted sizes, one column per experiment."""
+    def test_default_settings(self):
+        """Default seeds, scaling sizes, sample size, timed batches, fitted sizes and experiment columns."""
         self.assertEqual((DEFAULT_SETTINGS.sample_seed, DEFAULT_SETTINGS.shuffle_seed,
                           DEFAULT_SETTINGS.nearly_sorted_seed), (42, 43, 44))
         self.assertEqual(DEFAULT_SETTINGS.scaling_sizes, (5, 10, 20, 250, 500, 1000, 2000, 4000))

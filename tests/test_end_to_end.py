@@ -1,6 +1,4 @@
 """End-to-end tests of main.py on a 30-row fixture with small settings; outputs go to temporary folders.
-
-Spec: ARCHITECTURE.md F-E2E-1, F-E2E-2.
 """
 import contextlib
 import csv

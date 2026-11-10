@@ -9,7 +9,7 @@ from sorting_analysis.config import Settings
 from sorting_analysis.experiments import case_row, run_scaling
 # Patch target of the module under test (patching only, never imported directly).
 EXTRAPOLATION_MODULE = "sorting_analysis.analysis.extrapolation.implementation.extrapolation"
-# Worked example of F-EXT-2: exact times of T(n) = 0.001 + 2e-6 n + 1e-7 n^2.
+# Worked example of the quadratic fit: exact times of T(n) = 0.001 + 2e-6 n + 1e-7 n^2.
 BASE_SIZES = (250, 500, 1000, 2000, 4000)
 EXACT_TIMES = (0.00775, 0.027, 0.103, 0.405, 1.609)
 
@@ -133,7 +133,7 @@ class TestFitQuadratic(unittest.TestCase):
                     fit_quadratic([5, 10, 20], [1.0, bad_time, 2.0])
 
     def test_zero_determinant_raises(self):
-        """A singular sums matrix -> ValueError."""
+        """det(X^T X) == 0 -> ValueError."""
         with patch(f"{EXTRAPOLATION_MODULE}.determinant_3x3", return_value=0):
             with self.assertRaises(ValueError):
                 fit_quadratic([5, 10, 20], [1.0, 2.0, 3.0])

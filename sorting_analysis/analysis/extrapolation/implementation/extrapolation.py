@@ -4,7 +4,6 @@ Description:
 - Fit T(n) = a0 + a1*n + a2*n**2 to bubble sort's median times at the base sizes (250 ... 4000) by
   least squares, beta = (X^T X)^-1 X^T y, then evaluate it at the target size (20,640).
 - T(n) is the median time at size n from the scaling experiment (random median_income samples).
-- Spec: ARCHITECTURE.md F-EXT-1 - F-EXT-5.
 """
 
 import math
@@ -17,7 +16,7 @@ from sorting_analysis.analysis import scaling_cases
 FIT_METHOD = "quadratic_fit"
 # CSV header of extrapolation.csv (one row).
 EXTRAPOLATION_FIELDS = ("method", "sizes_used", "a0", "a1", "a2", "target_size", "estimate_s")
-# Keys of the measured-versus-fitted rows printed by main.py for the report table.
+# Keys of the measured-versus-fitted rows printed by main.py.
 FITTED_FIELDS = ("input_size", "measured_s", "fitted_s")
 
 
@@ -194,7 +193,7 @@ def extrapolate_bubble(cases, target_size, base_sizes):
     - Fit the quadratic to bubble_times(cases, base_sizes) and evaluate it at target_size.
     - The estimate row has method FIT_METHOD, sizes_used as text (e.g. '250;500;1000;2000;4000'),
       a0, a1, a2, target_size and estimate_s = predict_time((a0, a1, a2), target_size).
-    - Also return measured versus fitted times at each base size, for the report table.
+    - Also return the measured and fitted times at each base size.
 
     Input arguments:
        cases (list[dict]): Case rows; only bubble sort scaling rows are used.
