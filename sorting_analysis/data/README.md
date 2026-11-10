@@ -39,7 +39,7 @@ Prepares the inputs: reads the CSV, inspects the selected columns, draws seeded 
 
 | Function | Input | Output |
 |---|---|---|
-| `ascending(values)` | values | sorted copy (our merge sort) |
+| `ascending(values)` | values | sorted copy (merge sort) |
 | `descending(values)` | values | reverse of `ascending` |
 | `nearly_sorted(values, seed)` | values, seed | ascending with floor(0.01 · len(values)) random swaps |
 | `make_orders(shuffled_values, nearly_sorted_seed)` | shuffled values, seed | `{"random", "sorted", "reversed", "nearly"}`; `"random"` unchanged |

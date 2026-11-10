@@ -2,7 +2,7 @@
 Description:
 - Test helper: numbers that record every comparison made with them.
 - Used to check that a plain sort and its counted version make exactly the same comparisons
-  (catches, e.g., a plain bubble sort without early termination). Spec: ARCHITECTURE.md F-SRT-1.
+  (catches, e.g., a plain bubble sort without early termination).
 """
 
 

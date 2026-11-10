@@ -1,7 +1,7 @@
 """
 Description:
 - Dataset inspection (rows, missing and distinct values) and duplication statistics.
-- Counting uses a dict; nothing is sorted. Spec: ARCHITECTURE.md F-INS-1 - F-INS-3.
+- Counting uses a dict; nothing is sorted.
 """
 
 from sorting_analysis.data import complete_cases, parse_value
@@ -26,7 +26,8 @@ def inspect_data(rows, columns):
        columns (tuple[str]): Selected columns.
 
     Return:
-        list[dict]: one dict per column with the INSPECTION_FIELDS keys, e.g. {'column': 'median_income', 'rows': 20640, 'missing': 0, 'distinct': 12928, 'excluded_rows': 0}.
+        list[dict]: one dict per column with the INSPECTION_FIELDS keys, e.g.
+        {'column': 'median_income', 'rows': 20640, 'missing': 0, 'distinct': 12928, 'excluded_rows': 0}.
     """
     results = []
     total_rows = len(rows)
@@ -61,13 +62,14 @@ def duplicate_stats(values):
     """
     Description:
     - Count distinct values, the most frequent value, the distinct values that occur more than once,
-    - and the observations that belong to those repeated values.
+      and the observations that belong to those repeated values.
 
     Input arguments:
        values (list[float]): Sample values, e.g. [1, 1, 2, 3, 3, 3].
 
     Return:
-        dict: sample_size, distinct, modal_value, modal_count, repeated_distinct, repeated_observations; e.g. [1, 1, 2, 3, 3, 3] -> 6, 3, 3, 3, 2, 5.
+        dict: sample_size, distinct, modal_value, modal_count, repeated_distinct, repeated_observations;
+        e.g. [1, 1, 2, 3, 3, 3] -> 6, 3, 3, 3, 2, 5.
     """
     frequencies = {}
 
