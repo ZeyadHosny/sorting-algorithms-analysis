@@ -2,6 +2,45 @@
 
 Implements bubble sort, selection sort and merge sort from scratch and compares them on the California Housing dataset: runtime, comparisons and writes across increasing input sizes, different input orders, and columns with different amounts of duplication.
 
+## Project Data Flow
+
+```mermaid
+flowchart TD
+    INPUT["housing.csv and run settings"] --> PREP["Load, inspect and prepare inputs"]
+    PREP --> SCALE["Scaling"]
+    PREP --> ORDER["Input order"]
+    PREP --> DUPES["Repeated values"]
+    SCALE --> BENCH["Shared benchmark for all three sorts"]
+    ORDER --> BENCH
+    DUPES --> BENCH
+    BENCH --> RESULTS["Verified cases and saved measurements"]
+    RESULTS -->|"Scaling cases"| ANALYSIS["Growth and Bubble Sort extrapolation"]
+    RESULTS -->|"Case measurements"| PLOTS["Charts and result tables"]
+    ANALYSIS -->|"Growth and fitted model"| PLOTS
+    RESULTS -.->|"CSV paths"| META["metadata.json: final run record"]
+    ANALYSIS -.->|"Analysis CSV paths"| META
+    PLOTS -.->|"Plot paths and availability"| META
+    INPUT -.->|"Dataset and settings"| META
+
+    classDef stage fill:#F1F5F9,stroke:#64748B,color:#172B4D
+    classDef track fill:#E8F0F8,stroke:#426991,color:#172B4D
+    classDef output fill:#EAF4F0,stroke:#52796B,color:#172B4D
+    class INPUT,PREP,BENCH,ANALYSIS stage
+    class SCALE,ORDER,DUPES track
+    class RESULTS,PLOTS,META output
+```
+
+Arrows show the main logical data flows; dotted arrows carry information for the
+run record. The three experimental tracks run sequentially, not in parallel.
+The shared benchmark times plain sorts; counted runs and correctness checks are
+outside timing. Scaling cases feed growth and extrapolation, while case
+measurements also feed charts directly.
+
+Metadata is written last after computations succeed. Charts require Matplotlib;
+if it is unavailable, metadata records `plots_status` as `missing`. Companion
+inspection and duplication-statistics outputs are listed in
+[results/README.md](results/README.md).
+
 ## Requirements
 
 - Python 3.10 or newer, standard library only.
