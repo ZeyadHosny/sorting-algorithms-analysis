@@ -1,7 +1,6 @@
 """
 Description:
 - Seeded sampling and shuffling of row indices. Each call uses its own random.Random(seed).
-- Spec: ARCHITECTURE.md F-SMP-1 - F-SMP-3.
 """
 
 import random

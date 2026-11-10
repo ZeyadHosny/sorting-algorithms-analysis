@@ -1,56 +1,82 @@
 # Contributing
 
-## Setup
+DATA 5010 - Project 2: Sorting Algorithm Analysis
+Last updated: 2026-11-10
 
-- Clone the shared repository. Both members use Python 3.10 or newer.
-- The dataset `housing.csv` is included in the repository root. Never modify it.
-- Run everything from the repository root (the folder with `main.py`). Run `python -m unittest discover` there to confirm the setup works.
+## Pull requests
 
-## Workflow
+All changes reach `main` through a pull request approved by the other team member. Nobody approves their own work. After the code freeze, only bug fixes and documentation are merged.
 
-1. Pull the latest `main` before starting any work.
-2. Create a branch: `feature/<description>`, `fix/<description>` or `docs/<description>`.
-3. Change only the files of the feature you are working on.
-4. Function signatures, shared modules and settings are agreed between both members. Do not change them alone; update the architecture document first, then the code.
-5. Add or update unit tests in the feature's `testing/` folder.
-6. Run all tests from the repository root and review your changes. A run with zero tests is not a pass.
-7. Commit small, focused changes with clear messages, e.g. `Add bubble sort with early termination`.
-8. Push the branch and open a pull request describing what changed, how it was tested and any known issues.
-9. The other member reviews before merging. Resolve conflicts line by line, never by accepting one whole version.
+A pull request description states what changed, which requirement it covers, and how it was tested. Mention in the title if it changes a shared file: `main.py`, `sorting_analysis/config.py`, any area's `__init__.py` or `common/` folder, or a sorting algorithm.
 
-## Naming
+Function signatures, shared modules and agreed assumptions change only with both members' approval, and the change is documented before it is implemented.
 
-- Folders, files, functions and variables: `snake_case`.
-- Classes: `PascalCase`. Constants: `UPPER_SNAKE_CASE`.
-- Test files: `test_<feature>.py`. Test methods: `test_<behaviour>`.
-- No duplicate copies such as `final`, `new` or `v2`.
+## Branches and commits
 
-## Code style
+Branch: `<type>/<short-description>`, lowercase with hyphens, e.g. `docs/cleaning-docs`.
+Types: `feat`, `fix`, `test`, `docs`, `chore`.
 
-- No type hints, `@property` or `@dataclass`. Types are given in the docstrings.
-- Every function and method has a comment above it (`# Function to ...`, `# Method to ...`) and a docstring with **Description**, **Input arguments** (`name (type): meaning`) and **Return** (`type: meaning (raises X if ...)`).
-- Result records are plain classes with private attributes set once in the constructor and read with `get_<attribute>()`. `config.py` holds values only.
-- Every module constant has a comment. Names describe their meaning (`order_sample_size`, not `n2`).
-- Exceptions: test methods use a one-line docstring stating the expected result, and the temporary `mock_*` functions in `main.py` have only a one-line comment, because they are deleted once the real step exists.
-- Every import uses an area's `__init__.py`: `from sorting_analysis.<area> import <name>` (e.g. `from sorting_analysis.sorts import SortStats`), also inside the area. Each area's `__init__.py` imports its `common/` first, because the features import its names back through the area.
-- Everything runs from the repository root (the folder with `main.py`): `python main.py ...`, `python -m unittest discover`, or one test file as a module, e.g. `python -m sorting_analysis.sorts.selection_sort.testing.test_selection_sort`. All paths are relative to the root.
+Commit: a short imperative summary, e.g. `add result tables and refine charts`.
 
-## Project rules
+Pull `main` before starting, and delete a branch after it is merged.
 
-- Use only the Python standard library. `matplotlib` is allowed only for plots.
-- Never use `sort()` or `sorted()`, except `sorted()` to verify that an output is correct.
-- Sorting functions copy their input by slicing (`values[:]`), return a new list and never modify the input.
-- Each algorithm has two versions with the same loops: a plain version, which is timed, and a counted version, which supplies the operation counts. Change both together; the comparison-trace tests must keep passing.
-- Bubble sort follows the lecture code (full passes, stop after a pass with no swaps). Selection sort swaps at most once per position, and merge sort takes the left value on ties (`<=`), as the PDF requires.
-- Count comparisons and writes exactly as defined: a swap is two writes; each value placed into a merged list is one write, including leftover tails; the initial copy of the input and the lists created by slicing are not counted.
-- Measure time with `time.perf_counter()` only. Only the plain sorts are timed; counters, loading, sampling and preparing inputs are never timed.
-- Seeds, sample sizes and timing settings are defined once in `config.py` and never hard-coded elsewhere.
+## Package layout
 
-## Shared rules
+Each area under `sorting_analysis/` (`data`, `sorts`, `timing`, `experiments`, `analysis`, `plots`) contains:
 
-- Each feature has one implementation (for a sort: its plain and counted files). Shared code belongs in `common/`.
-- Official results are produced only by `python main.py all`, run once on one machine. Development runs write to `results/dev/`.
-- Never edit result files by hand.
-- Any change to an agreed assumption requires both members' approval and is documented before it is implemented.
-- Do not commit `__pycache__/`, virtual environments or editor settings.
-- After the code freeze, merge only bug fixes, each through a reviewed pull request.
+```
+README.md          what the area does and its interfaces
+__init__.py        the names other code may import; imports common/ first, if present
+common/            code shared by the area's features (optional)
+<feature>/
+    __init__.py
+    implementation/    code
+    testing/           unit tests (must contain __init__.py)
+```
+
+Import from the area, also inside it. Only a feature's `__init__.py` imports from its `implementation/` folder:
+
+```python
+from sorting_analysis.sorts import bubble_sort                                   # yes
+from sorting_analysis.sorts.bubble_sort.implementation.bubble_sort import bubble_sort  # no
+```
+
+Seeds, sizes, columns and timing values are defined once in `sorting_analysis/config.py` and never hard-coded elsewhere.
+
+## Code rules
+
+- Standard library only; `matplotlib` only in `plots/`.
+- Never use `sort()` or `sorted()`, except `sorted()` to verify an output.
+- Sorting functions copy their input (`values[:]`) and never modify it. The plain version, which is timed, returns a new sorted list; the counted version, with the same loops, returns `(sorted_values, SortStats)`. Change both together.
+- Count and time exactly as defined in the README: a swap is 2 writes, slicing is not counted, only the plain sorts are timed, with `time.perf_counter()`.
+- `snake_case` for modules, functions and variables; `PascalCase` for classes; `UPPER_SNAKE_CASE` for constants, each with a comment. Names describe their meaning (`order_sample_size`, not `n2`).
+- No type hints, `@property` or `@dataclass`. Result records set private attributes once and expose `get_<attribute>()` methods.
+- Every function has a comment above it (`# Function to ...` or `# Method to ...`) and a docstring with **Description**, **Input arguments** (`name (type): meaning`) and **Return**. Test methods use a short docstring stating the expected result.
+
+## Data and outputs
+
+- `housing.csv` is never edited.
+- `results/` holds the official outputs, written only by `python main.py`. Commit them after an official run, and never edit them by hand.
+- Development commands write to `results/dev/`, which Git ignores, as are `__pycache__/`, `.venv/` and `.vscode/`.
+
+## Tests
+
+Run from the repository folder before opening a pull request:
+
+```bash
+python -m unittest discover
+```
+
+The current result is `Ran 263 tests ... OK`. Check the number of tests, not only `OK`; a `testing/` folder without `__init__.py` is skipped silently.
+
+## Quick reference
+
+```
+BRANCH   docs/cleaning-docs
+COMMIT   add result tables and refine charts
+REVIEW   one approval, never your own
+IMPORT   from sorting_analysis.<area> import <name>
+SETTINGS sorting_analysis/config.py
+RUN      python main.py                (official results in results/)
+TESTS    python -m unittest discover   (263 tests)
+```

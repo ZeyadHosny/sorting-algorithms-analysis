@@ -5,7 +5,6 @@ Description:
   their outputs; the timed outputs are verified against sorted() after the clock stops.
 - The counted sort supplies the operation counts; it runs and is verified outside the clock.
 - Garbage collection is off while timing.
-- Spec: ARCHITECTURE.md F-BEN-1 - F-BEN-10.
 """
 
 import gc
@@ -199,7 +198,7 @@ def benchmark(sort_function, counted_sort_function, values, settings=DEFAULT_SET
         # 2. Timed run: only the plain sort and storing its outputs.
         outputs = [None] * sorts_per_batch
         gc_was_enabled = gc.isenabled()
-        # Turn off garbage collection while timing, so its unpredictable pauses do not add to the measured time.
+        # Garbage collection is off while timing, so its pauses do not add to the measured time.
         gc.disable()
         try:
             start = time.perf_counter()
@@ -225,7 +224,7 @@ def benchmark(sort_function, counted_sort_function, values, settings=DEFAULT_SET
 def median_of(values):
     """
     Description:
-    - Sort the values with our plain merge_sort (sorted() is used only for verification) and take
+    - Sort the values with the plain merge_sort (sorted() is used only for verification) and take
       the middle value (the mean of the two middle values for an even count).
 
     Input arguments:

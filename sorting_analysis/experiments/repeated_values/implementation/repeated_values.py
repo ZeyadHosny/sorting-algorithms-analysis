@@ -1,7 +1,6 @@
 """
 Description:
 - Repeated-values experiment: all three algorithms on the three columns, same rows in the same order.
-- Spec: ARCHITECTURE.md F-REP-1 - F-REP-4.
 """
 
 from sorting_analysis.config import DEFAULT_SETTINGS
@@ -24,7 +23,8 @@ def run_repeated_values(rows, usable_indices, settings=DEFAULT_SETTINGS):
        settings (Settings): Run settings (seeds, sizes, columns, timing).
 
     Return:
-        tuple: (9 CaseResults, one duplicate_stats dict per column) (raises ValueError if order_sample_size exceeds the usable rows; VerificationError from benchmark)
+        tuple: (9 CaseResults, one duplicate_stats dict per column) (raises ValueError if
+        order_sample_size exceeds the usable rows; VerificationError from benchmark)
     """
     sampled_indices = sample_indices(usable_indices, settings.order_sample_size, settings.sample_seed)
     shuffled_indices = shuffle_indices(sampled_indices, settings.shuffle_seed)

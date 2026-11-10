@@ -8,7 +8,7 @@ from sorting_analysis.experiments import ALGORITHMS, run_input_order, run_repeat
 from sorting_analysis.sorts import SortStats
 from sorting_analysis.timing import TimingResult, VerificationError
 
-# Patch the Benchmark reference used by the repeated-values experiment.
+# Patch the benchmark reference used by the repeated-values experiment.
 BENCHMARK_PATH = 'sorting_analysis.experiments.repeated_values.implementation.repeated_values.benchmark'
 # Patch the separate reference used by the input-order experiment for the cross-experiment check.
 ORDER_BENCHMARK_PATH = 'sorting_analysis.experiments.input_order.implementation.input_order.benchmark'
@@ -188,7 +188,7 @@ class TestRunRepeatedValues(unittest.TestCase):
 
     # Check that an oversized request fails before any timing call
     def test_sample_too_large_raises(self):
-        """A sample larger than the usable rows raises ValueError without calling Benchmark."""
+        """A sample larger than the usable rows raises ValueError without calling benchmark."""
         with patch(BENCHMARK_PATH) as measure:
             with self.assertRaises(ValueError):
                 run_repeated_values(self.rows, self.usable_indices, Settings(order_sample_size=13))
@@ -196,7 +196,7 @@ class TestRunRepeatedValues(unittest.TestCase):
 
     # Check that failed verification is not converted to a successful case
     def test_verification_errors_propagate(self):
-        """A VerificationError from Benchmark reaches the caller."""
+        """A VerificationError from benchmark reaches the caller."""
         with patch(BENCHMARK_PATH, side_effect=VerificationError('unit-test failure')):
             with self.assertRaises(VerificationError):
                 run_repeated_values(self.rows, self.usable_indices, self.settings)
@@ -205,9 +205,9 @@ class TestRunRepeatedValues(unittest.TestCase):
 class TestRepeatedValuesIntegration(unittest.TestCase):
     """The driver together with the real benchmark."""
 
-    # Check the actual driver and Benchmark together using small development settings
+    # Check the driver with the real benchmark and small development settings
     def test_real_benchmark(self):
-        """Real Benchmark returns nine cases and three statistics rows, each case with one timed batch."""
+        """The real benchmark returns nine cases and three statistics rows, each case with one timed batch."""
         rows = [{'median_income': str(index + 1), 'housing_median_age': '20',
                  'median_house_value': '500001'} for index in range(10)]
         settings = Settings(order_sample_size=10, timed_batches=1, small_input_repetitions=1)

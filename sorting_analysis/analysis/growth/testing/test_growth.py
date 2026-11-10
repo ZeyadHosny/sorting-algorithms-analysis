@@ -40,7 +40,7 @@ class TestTheoreticalFactor(unittest.TestCase):
         self.assertEqual(theoretical_factor("merge", 2, 4), 4.0)
 
     def test_other_size_ratios(self):
-        """The theoretical helper uses its supplied sizes, even when the size ratio is not two."""
+        """theoretical_factor uses the given sizes, even when their ratio is not two."""
         self.assertEqual(theoretical_factor("selection", 100, 300), 9.0)
         self.assertEqual(theoretical_factor("merge", 2, 8), 12.0)
 
@@ -142,7 +142,7 @@ class TestGrowthFactors(unittest.TestCase):
         rows = [{"median_income": str(value)} for value in range(20, 0, -1)]
         settings = Settings(scaling_sizes=(5, 10, 20), small_input_repetitions=2)
         cases = run_scaling(rows, list(range(20)), settings)
-        # Build only the fields Growth needs, without depending on the separate Records feature.
+        # Build only the fields growth_factors needs, without case_row.
         direct_rows = [{"experiment": case.get_experiment(), "algorithm": case.get_algorithm(),
                         "input_size": case.get_input_size(), "median_s": case.get_timing().get_median_seconds()}
                        for case in cases]
