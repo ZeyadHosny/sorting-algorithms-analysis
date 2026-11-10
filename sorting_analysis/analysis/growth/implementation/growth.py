@@ -1,7 +1,6 @@
 """
 Description:
 - Observed versus theoretical runtime growth when the input size doubles.
-- Spec: ARCHITECTURE.md F-GRO-1, F-GRO-2.
 """
 
 import math

@@ -1,8 +1,7 @@
 """
 Description:
 - Builds the four input orders of the input-order experiment.
-- 'Already sorted' comes from our merge sort, never from sort() or sorted().
-- Spec: ARCHITECTURE.md F-ORD-1 - F-ORD-5.
+- 'Already sorted' comes from merge sort, never from sort() or sorted().
 """
 
 import random
@@ -10,11 +9,11 @@ import random
 from sorting_analysis.sorts import merge_sort
 
 
-# Function to sort values ascending with our merge sort
+# Function to sort values ascending with merge sort
 def ascending(values):
     """
     Description:
-    - Return the new ascending list produced by our plain merge_sort (outside any timing).
+    - Return the new ascending list produced by the plain merge_sort (outside any timing).
 
     Input arguments:
        values (list[float]): Input values.
@@ -48,7 +47,7 @@ def nearly_sorted(values, seed):
     Description:
     - Sort ascending, then apply floor(0.01 * len(values)) swaps.
     - Each swap exchanges two distinct positions chosen uniformly at random;
-    - a position may take part in several swaps.
+      a position may take part in several swaps.
 
     Input arguments:
        values (list[float]): Input values.

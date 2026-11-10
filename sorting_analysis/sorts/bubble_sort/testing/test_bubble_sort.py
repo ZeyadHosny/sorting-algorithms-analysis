@@ -41,7 +41,7 @@ class TestBubbleSort(unittest.TestCase):
 
 
 class TestCountedBubbleSort(unittest.TestCase):
-    """Counted version: correctness, counts and early termination (full passes, as in the lecture)."""
+    """Counted version: correctness, counts and early termination; every pass covers the whole list."""
 
     def test_sorts_and_keeps_input(self):
         """[3, 1, 2] -> [1, 2, 3]; the input list is unchanged."""

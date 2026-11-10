@@ -7,7 +7,6 @@ Description:
 - Exit codes: 0 success (plots may be missing) | 1 computation failure (wrong sort output,
   invalid timing, unexpected error) | 2 input or usage error (dataset, columns, sample size,
   cases.csv, matplotlib for `plot`) | 130 interrupted.
-- Spec: ARCHITECTURE.md F-MAIN-1 - F-MAIN-6.
 """
 
 import argparse
@@ -359,7 +358,7 @@ def remove_previous_outputs(output_folder):
     Description:
     - Delete metadata.json, a leftover temporary metadata file and the chart PNGs (PLOT_OUTPUTS)
       before an official run, so a failed run never leaves an old success marker or stale charts.
-    - Other files, e.g. charts made by hand in Excel, are kept.
+    - Other files in the folder are kept.
 
     Input arguments:
        output_folder (str): Folder of the official run.

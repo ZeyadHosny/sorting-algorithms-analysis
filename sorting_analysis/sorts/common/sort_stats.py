@@ -1,6 +1,6 @@
 """
 Description:
-- Operation counts returned by every sorting algorithm. Spec: ARCHITECTURE.md F-STA-1.
+- Operation counts returned by every sorting algorithm.
 """
 
 

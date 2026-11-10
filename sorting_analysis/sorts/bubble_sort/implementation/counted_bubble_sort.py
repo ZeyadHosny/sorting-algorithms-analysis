@@ -1,7 +1,7 @@
 """
 Description:
 - Bubble sort with early termination and operation counters: the version that supplies the counts.
-- Same loops as bubble_sort; it is never timed. Spec: ARCHITECTURE.md F-BUB-1 - F-BUB-7.
+- Same loops as bubble_sort; it is never timed.
 """
 
 from sorting_analysis.sorts import SortStats

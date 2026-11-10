@@ -81,7 +81,7 @@ class TestParseValue(unittest.TestCase):
                 self.assertEqual(actual, expected)
                 self.assertIsInstance(actual, float)
 
-    # Check every form of missing value accepted by the contract
+    # Check every form of missing value
     def test_blank_unparsable_and_non_finite_become_none(self):
         """Blank, absent, invalid, NaN and infinite values return None."""
         examples = ["", "   ", None, "abc", "nan", "NaN", "inf", "-inf", "1e309"]

@@ -92,7 +92,7 @@ class TestRunInputOrder(unittest.TestCase):
         for case in selection_cases:
             self.assertEqual(case.get_sort_stats().get_comparisons(), 45)
 
-    # Check shared inputs, nondefault seeds and the functions passed to Benchmark
+    # Check shared inputs, nondefault seeds and the functions passed to benchmark
     def test_expected_inputs_are_shared_across_algorithms(self):
         """All algorithms receive identical prepared values for each order and the requested settings."""
         rows = [{'median_income': str(index + 1)} for index in range(220)]
@@ -185,7 +185,7 @@ class TestRunInputOrder(unittest.TestCase):
 
     # Check that an oversized sample fails before timing starts
     def test_sample_too_large_raises(self):
-        """A requested sample larger than the usable rows raises ValueError without calling Benchmark."""
+        """A requested sample larger than the usable rows raises ValueError without calling benchmark."""
         with patch(BENCHMARK_PATH) as measure:
             with self.assertRaises(ValueError):
                 run_input_order(self.rows, self.usable_indices, Settings(order_sample_size=13))
@@ -193,7 +193,7 @@ class TestRunInputOrder(unittest.TestCase):
 
     # Check that the driver does not hide a failed verification
     def test_verification_errors_propagate(self):
-        """A VerificationError from Benchmark reaches the caller."""
+        """A VerificationError from benchmark reaches the caller."""
         with patch(BENCHMARK_PATH, side_effect=VerificationError('unit-test failure')):
             with self.assertRaises(VerificationError):
                 run_input_order(self.rows, self.usable_indices, self.settings)
@@ -202,9 +202,9 @@ class TestRunInputOrder(unittest.TestCase):
 class TestInputOrderIntegration(unittest.TestCase):
     """The driver together with the real benchmark."""
 
-    # Check the driver and actual Benchmark together using short development settings
+    # Check the driver with the real benchmark and short development settings
     def test_real_benchmark(self):
-        """Real Benchmark returns twelve cases, each with one timed batch."""
+        """The real benchmark returns twelve cases, each with one timed batch."""
         rows = [{'median_income': str(index + 1)} for index in range(10)]
         settings = Settings(order_sample_size=10, timed_batches=1, small_input_repetitions=1)
         cases = run_input_order(rows, list(range(10)), settings)

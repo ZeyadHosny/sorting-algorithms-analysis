@@ -1,7 +1,6 @@
 """
 Description:
 - The result record of one measured case and the CSV files built from it.
-- Spec: ARCHITECTURE.md F-REC-1 - F-REC-5.
 """
 
 import csv
@@ -276,7 +275,7 @@ def read_cases(path):
     """
     Description:
     - Convert input_size, comparisons, writes, sorts_per_batch to int; median_s, min_s, max_s to float;
-    - swaps to int, or None for 'n/a'.
+      swaps to int, or None for 'n/a'.
 
     Input arguments:
        path (str): CSV written by write_cases.
