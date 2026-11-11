@@ -28,6 +28,8 @@ Prepares the inputs: reads the CSV, inspects the selected columns, draws seeded 
 | `duplicate_stats(values)` | sample values | `sample_size, distinct, modal_value, modal_count, repeated_distinct, repeated_observations` |
 | `INSPECTION_FIELDS`, `DUPES_FIELDS` | — | CSV headers of the two results |
 
+When multiple values share the highest frequency, we report the first encountered value.
+
 ### sampling
 
 | Function | Input | Output |
